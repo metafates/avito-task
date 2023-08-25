@@ -1,0 +1,142 @@
+openapi: 3.1.0
+info:
+  title: Avito Test
+  version: 0.1.0
+paths:
+  /segments/{slug}:
+    parameters:
+      - in: path
+        name: slug
+        description: Segment slug
+        required: true
+        schema:
+          $ref: '#/components/schemas/Slug'
+    post:
+      summary: Create a new segment
+      requestBody:
+        $ref: '#/components/requestBodies/SegmentCreation'
+      responses:
+        '201':
+          description: Segment succesfully created
+        '409':
+          description: Segment with this slug exists already
+    delete:
+      summary: Delete a segment
+      responses:
+        '200':
+          description: Segment successfully deleted
+        '404':
+          description: Segment with the given was not found
+  /users/{id}:
+    parameters:
+      - in: path
+        name: id
+        description: User ID to work with
+        required: true
+        schema:
+          $ref: '#/components/schemas/UserID'
+    post:
+      summary: Create a new user
+      responses:
+        '201':
+          description: User created
+        '409':
+          description: User exists
+  /users/{id}/segments:
+    parameters:
+      - in: path
+        name: id
+        description: User ID to work with
+        required: true
+        schema:
+          $ref: '#/components/schemas/UserID'
+    get:
+      summary: Get active segments assigned to a user
+      responses:
+        '200':
+          description: Segments assigned to a user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Segment'
+        '404':
+          description: User not found
+
+  /users/{id}/segments/{slug}:
+    parameters:
+      - in: path
+        name: id
+        description: User ID to work with
+        required: true
+        schema:
+          $ref: '#/components/schemas/UserID'
+      - in: path
+        name: slug
+        description: Segment slug
+        required: true
+        schema:
+          $ref: '#/components/schemas/Slug'
+    post:
+      summary: Assign segment to a user
+      requestBody:
+        $ref: '#/components/requestBodies/SegmentAssignment'
+      responses:
+        '200':
+          description: Segment assigned
+        '409':
+          description: Segment already assigned
+        '404':
+          description: Either user or segment slug was not found
+    delete:
+      summary: Remove segment from a user
+      responses:
+        '200':
+          description: Segment removed
+        '404':
+          description: Either user or segment slug was not found
+
+components:
+  schemas:
+    Timestamp:
+      type: string
+      format: date-time
+    UserID:
+      type: integer
+      format: int32
+    Slug:
+      type: string
+    Segment:
+      type: object
+      required:
+        - slug
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        expires:
+          $ref: '#/components/schemas/Timestamp'
+  requestBodies:
+    SegmentAssignment:
+      description: Assign segment to a user
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - expires
+            properties:
+              expires:
+                $ref: '#/components/schemas/Timestamp'
+    SegmentCreation:
+      description: Create a new segment
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              outreach:
+                type: number
+                format: float

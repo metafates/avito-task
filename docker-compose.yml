@@ -1,0 +1,52 @@
+version: '3.1'
+services:
+  server:
+    ports:
+      - 1234:1234
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 1234
+      SERVER_JWT_SECRET: RMxcllZRO5FCurG6zZGeB2vyg7WBxuLCSYl1Qx127H9zZ55qe6XsGABY47MVuwm
+      SERVER_DB_POSTGRES: postgresql://postgres:postgres@db/db
+      SERVER_DB_REDIS: redis://redis?protocol=3
+    build:
+      context: .
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: db
+      PGUSER: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "db_prod"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - 6379:6379
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./openapi.yaml:/swagger.yaml
+    environment:
+      SWAGGER_JSON: /swagger.yaml
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    depends_on:
+      db:
+        condition: service_healthy
