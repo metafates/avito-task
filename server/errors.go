@@ -8,4 +8,5 @@ var (
 	errSegmentNotFound        = errors.New("segment not found")
 	errSegmentExists          = errors.New("segment exists")
 	errSegmentAssignedAlready = errors.New("segment is already assigned")
+	errSegmentNotAssigned     = errors.New("segment is not assigned")
 )

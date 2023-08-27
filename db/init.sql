@@ -13,11 +13,11 @@ create table assigned_segments (
     expires_at timestamp
 );
 
-alter table assigned_segments enable row level security;
+-- alter table assigned_segments enable row level security;
 
-create policy filter_expired_assignments on assigned_segments
-    for select
-    using (expires_at > now() or expires_at is null);
+-- create policy filter_expired_assignments on assigned_segments
+--     for select
+--     using (expires_at > now() or expires_at is null);
 
 -- create table audit (
 --     operation operation,

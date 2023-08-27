@@ -6,6 +6,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/metafates/avito-task/db"
+	"github.com/metafates/avito-task/log"
 	"github.com/metafates/avito-task/server/api"
 )
 
@@ -100,7 +101,7 @@ func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.Use
 		psql().
 		Select("segment_slug", "expires_at").
 		From(db.TableAssignedSegments).
-		Where(squirrel.Eq{"user_id": id}).
+		Where("user_id = $1 and (expires_at > now() or expires_at is null)", id).
 		ToSql()
 	if err != nil {
 		return nil, err
@@ -108,6 +109,7 @@ func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.Use
 
 	rows, err := a.pg().Query(ctx, sql, args...)
 	if err != nil {
+		log.Logger.Err(err).Send()
 		return nil, err
 	}
 

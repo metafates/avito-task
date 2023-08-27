@@ -76,6 +76,17 @@ func (a *Server) DeleteUsersIdSegmentsSlug(ctx context.Context, request api.Dele
 		}, nil
 	}
 
+	hasSegment, err := a.userHasSegment(ctx, request.Id, request.Slug)
+	if err != nil {
+		return nil, err
+	}
+
+	if !hasSegment {
+		return api.DeleteUsersIdSegmentsSlug404JSONResponse{
+			Error: errSegmentNotAssigned.Error(),
+		}, err
+	}
+
 	if err = a.depriveSegment(ctx, request.Id, request.Slug); err != nil {
 		return nil, err
 	}
