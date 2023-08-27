@@ -21,7 +21,7 @@ func (a *Server) PostUsersId(ctx context.Context, request api.PostUsersIdRequest
 
 	if exists {
 		return api.PostUsersId409JSONResponse{
-			Error: "user exists",
+			Error: errUserExists.Error(),
 		}, nil
 	}
 
@@ -41,7 +41,7 @@ func (a *Server) DeleteSegmentsSlug(ctx context.Context, request api.DeleteSegme
 
 	if !exists {
 		return api.DeleteSegmentsSlug404JSONResponse{
-			Error: "segment not found",
+			Error: errSegmentNotFound.Error(),
 		}, nil
 	}
 
@@ -61,7 +61,7 @@ func (a *Server) DeleteUsersIdSegmentsSlug(ctx context.Context, request api.Dele
 
 	if !exists {
 		return api.DeleteUsersIdSegmentsSlug404JSONResponse{
-			Error: "user not found",
+			Error: errUserNotFound.Error(),
 		}, nil
 	}
 
@@ -72,7 +72,7 @@ func (a *Server) DeleteUsersIdSegmentsSlug(ctx context.Context, request api.Dele
 
 	if !exists {
 		return api.DeleteUsersIdSegmentsSlug404JSONResponse{
-			Error: "segment not found",
+			Error: errSegmentNotFound.Error(),
 		}, nil
 	}
 
@@ -92,7 +92,7 @@ func (a *Server) GetUsersIdSegments(ctx context.Context, request api.GetUsersIdS
 
 	if !exists {
 		return api.GetUsersIdSegments404JSONResponse{
-			Error: "user not found",
+			Error: errUserNotFound.Error(),
 		}, nil
 	}
 
@@ -113,11 +113,16 @@ func (a *Server) PostSegmentsSlug(ctx context.Context, request api.PostSegmentsS
 
 	if exists {
 		return api.PostSegmentsSlug409JSONResponse{
-			Error: "segment exists",
+			Error: errSegmentExists.Error(),
 		}, nil
 	}
 
-	if err = a.createSegment(ctx, request.Slug, api.SegmentCreation(*request.Body)); err != nil {
+	var segmentCreation api.SegmentCreation
+	if body := request.Body; body != nil {
+		segmentCreation.Outreach = body.Outreach
+	}
+
+	if err = a.createSegment(ctx, request.Slug, segmentCreation); err != nil {
 		return nil, err
 	}
 
@@ -133,7 +138,7 @@ func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUs
 
 	if !exists {
 		return api.PostUsersIdSegmentsSlug404JSONResponse{
-			Error: "user not found",
+			Error: errUserNotFound.Error(),
 		}, nil
 	}
 
@@ -144,7 +149,7 @@ func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUs
 
 	if !exists {
 		return api.PostUsersIdSegmentsSlug404JSONResponse{
-			Error: "segment not found",
+			Error: errSegmentNotFound.Error(),
 		}, nil
 	}
 
@@ -155,15 +160,20 @@ func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUs
 
 	if hasSegment {
 		return api.PostUsersIdSegmentsSlug409JSONResponse{
-			Error: "segment is already assigned",
+			Error: errSegmentAssignedAlready.Error(),
 		}, nil
+	}
+
+	var segmentAssignment api.SegmentAssignment
+	if body := request.Body; body != nil {
+		segmentAssignment.Expires = body.Expires
 	}
 
 	if err = a.assignSegment(
 		ctx,
 		request.Id,
 		request.Slug,
-		api.SegmentAssignment(*request.Body),
+		segmentAssignment,
 	); err != nil {
 		return nil, err
 	}

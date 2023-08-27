@@ -26,6 +26,10 @@ func run(name string, args ...string) error {
 	return cmd.Run()
 }
 
+func goInstall(url string) error {
+	return run("go", "install", url)
+}
+
 func inPath(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
@@ -111,14 +115,14 @@ func installGenerators() error {
 	log.Logger.Info().Msg("installing dependencies")
 
 	if !inPath("oapi-codegen") {
-		err := run("go", "install", "github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest")
+		err := goInstall("github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest")
 		if err != nil {
 			return err
 		}
 	}
 
 	if !inPath("goctl") {
-		err := run("go", "install", "github.com/zeromicro/go-zero/tools/goctl@latest")
+		err := goInstall("github.com/zeromicro/go-zero/tools/goctl@latest")
 		if err != nil {
 			return err
 		}

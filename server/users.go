@@ -9,6 +9,33 @@ import (
 	"github.com/metafates/avito-task/server/api"
 )
 
+// users Returns a list of all users
+func (a *Server) users(ctx context.Context) ([]api.UserID, error) {
+	sql, args, err := a.psql().Select("id").From(db.TableUsers).ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := a.pg().Query(ctx, sql, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var users []api.UserID
+	for rows.Next() {
+		var user api.UserID
+
+		if err = rows.Scan(&user); err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+// userExists Checks if the given user exists
 func (a *Server) userExists(ctx context.Context, id api.UserID) (bool, error) {
 	sql, args, err := a.
 		psql().
@@ -31,8 +58,8 @@ func (a *Server) userExists(ctx context.Context, id api.UserID) (bool, error) {
 	return exists, nil
 }
 
+// createUser Creates a new user.
 func (a *Server) createUser(ctx context.Context, id api.UserID) error {
-	// automatically assign segments to a user based on their outreach
 	sql, args, err := a.
 		psql().
 		Insert(db.TableUsers).
@@ -44,9 +71,30 @@ func (a *Server) createUser(ctx context.Context, id api.UserID) error {
 	}
 
 	_, err = a.pg().Exec(ctx, sql, args...)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Randomly assign segments based on their outreach
+	segments, err := a.segmentsWithOutreach(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, segment := range segments {
+		if !shouldSegmentBeAssigned(segment.Outreach) {
+			continue
+		}
+
+		if err = a.assignSegment(ctx, id, segment.Slug, api.SegmentAssignment{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
+// assignedSegments Gets all segments assigned to the user
 func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.UserSegment, error) {
 	sql, args, err := a.
 		psql().
@@ -77,6 +125,7 @@ func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.Use
 	return segments, nil
 }
 
+// userHasSegment Checks if user is assigned to this segment
 func (a *Server) userHasSegment(ctx context.Context, user api.UserID, segment api.Slug) (bool, error) {
 	segments, err := a.assignedSegments(ctx, user)
 	if err != nil {
@@ -92,6 +141,7 @@ func (a *Server) userHasSegment(ctx context.Context, user api.UserID, segment ap
 	return false, nil
 }
 
+// assignSegment Assigns segment to a user
 func (a *Server) assignSegment(
 	ctx context.Context,
 	user api.UserID,
@@ -120,6 +170,7 @@ func (a *Server) assignSegment(
 	return err
 }
 
+// depriveSegment Removes segment from a user
 func (a *Server) depriveSegment(
 	ctx context.Context,
 	user api.UserID,

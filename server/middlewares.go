@@ -8,6 +8,7 @@ import (
 	"github.com/metafates/avito-task/log"
 )
 
+// middlewareLogger Logs all requests
 func middlewareLogger(f runtime.StrictEchoHandlerFunc, operationID string) runtime.StrictEchoHandlerFunc {
 	return func(ctx echo.Context, request any) (response any, err error) {
 		event := log.

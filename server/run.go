@@ -10,6 +10,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Run the server with the given addr and options.
+// It will gracefully shutdown the server when the context is done.
 func Run(ctx context.Context, addr string, options Options) error {
 	swagger, err := api.GetSwagger()
 	if err != nil {
@@ -44,9 +46,6 @@ func Run(ctx context.Context, addr string, options Options) error {
 	})
 	g.Go(func() error {
 		<-gCtx.Done()
-
-		log.Logger.Info().Str("db", "postgres").Msg("closing connection")
-		options.Connections.Postgres.Close(context.Background())
 
 		log.Logger.Info().Msg("shutting down the server")
 		return e.Shutdown(context.Background())

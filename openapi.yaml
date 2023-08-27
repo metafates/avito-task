@@ -30,7 +30,7 @@ paths:
         '200':
           description: Segment successfully deleted
         '404':
-          description: Segment with the given was not found
+          description: Segment with the given slug was not found
           content:
             application/json:
               schema:
@@ -131,7 +131,6 @@ components:
     Outreach:
       type: number
       format: float
-      writeOnly: true
     UserID:
       type: string
       # type: integer
