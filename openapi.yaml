@@ -60,7 +60,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Segment'
+                  $ref: '#/components/schemas/UserSegment'
         '404':
           description: User not found
 
@@ -90,10 +90,10 @@ paths:
         '404':
           description: Either user or segment slug was not found
     delete:
-      summary: Remove segment from a user
+      summary: Deprive segment from a user
       responses:
         '200':
-          description: Segment removed
+          description: Segment deprived
         '404':
           description: Either user or segment slug was not found
 
@@ -102,12 +102,17 @@ components:
     Timestamp:
       type: string
       format: date-time
+    Outreach:
+      type: number
+      format: float
+      writeOnly: true
     UserID:
-      type: integer
-      format: int32
+      type: string
+      # type: integer
+      # format: int32
     Slug:
       type: string
-    Segment:
+    UserSegment:
       type: object
       required:
         - slug
@@ -116,16 +121,21 @@ components:
           $ref: '#/components/schemas/Slug'
         expires:
           $ref: '#/components/schemas/Timestamp'
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
   requestBodies:
     SegmentAssignment:
       description: Assign segment to a user
-      required: true
+      required: false
       content:
         application/json:
           schema:
             type: object
-            required:
-              - expires
             properties:
               expires:
                 $ref: '#/components/schemas/Timestamp'
@@ -138,5 +148,4 @@ components:
             type: object
             properties:
               outreach:
-                type: number
-                format: float
+                $ref: '#/components/schemas/Outreach'

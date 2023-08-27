@@ -26,10 +26,7 @@ func Run(ctx context.Context, addr string, options api.Options) error {
 		<-gCtx.Done()
 
 		log.Logger.Info().Str("db", "postgres").Msg("closing connection")
-		options.DB.Postgres.Close(context.Background())
-
-		log.Logger.Info().Str("db", "redis").Msg("closing connection")
-		options.DB.Redis.Close()
+		options.Connections.Postgres.Close(context.Background())
 
 		log.Logger.Info().Msg("shutting down the server")
 		return server.Shutdown(context.Background())

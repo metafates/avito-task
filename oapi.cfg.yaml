@@ -1,6 +1,6 @@
 package: api
 generate:
-  echo-server: true
+  chi-server: true
   strict-server: true
   embedded-spec: true
   models: true

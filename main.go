@@ -6,9 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/metafates/avito-task/config"
 	"github.com/metafates/avito-task/db"
 	"github.com/metafates/avito-task/log"
@@ -34,11 +32,7 @@ func main() {
 
 	log.Logger.Info().Msg("starting the server")
 	err = server.Run(ctx, net.JoinHostPort("0.0.0.0", cfg.Port), api.Options{
-		RefreshTokenDuration: 7 * 24 * time.Hour,
-		AccessTokenDuration:  5 * time.Minute,
-		Secret:               []byte(cfg.JWT.Secret),
-		SigningMethod:        jwt.SigningMethodHS512,
-		DB:                   dbConnections,
+		Connections: dbConnections,
 	})
 
 	if err != nil {

@@ -1,24 +1,28 @@
-CREATE TYPE IF NOT EXISTS OPERATION AS ENUM ('add', 'remove');
-CREATE DOMAIN IF NOT EXISTS SLUG AS VARCHAR(128);
-
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY,
+create table users (
+    id varchar(32) primary key
 );
 
-CREATE TABLE IF NOT EXISTS segments (
-    slug SLUG PRIMARY KEY,
-    outreach REAL
+create table segments (
+    slug varchar(128) primary key,
+    outreach real
 );
 
-CREATE TABLE IF NOT EXISTS assigned_segments (
-    user INTEGER REFERENCES users(id),
-    segment SLUG REFERENCES segments(slug),
-    expires_at TIMESTAMP
+create table assigned_segments (
+    user_id varchar(32) references users(id) on delete cascade,
+    segment_slug varchar(128) references segments(slug) on delete cascade,
+    expires_at timestamp
 );
 
-CREATE TABLE IF NOT EXISTS changes (
-    user_id INTEGER REFERENCES users(id),
-    segment_slug SLUG,
-    operation OPERATION,
-    timestamp TIMESTAMP
-);
+alter table assigned_segments enable row level security;
+
+
+create policy filter_expired_assignments on assigned_segments
+    for select
+    using (expires_at > now() or expires_at is null);
+
+-- create table audit (
+--     operation operation,
+--     user_id integer references USERS(ID) on delete cascade,
+--     segment_slug slug,
+--     timestamp timestamp
+-- );

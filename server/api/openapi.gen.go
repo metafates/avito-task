@@ -18,14 +18,11 @@ import (
 
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/labstack/echo/v4"
+	"github.com/go-chi/chi/v5"
 )
 
-// Segment defines model for Segment.
-type Segment struct {
-	Expires *Timestamp `json:"expires,omitempty"`
-	Slug    Slug       `json:"slug"`
-}
+// Outreach defines model for Outreach.
+type Outreach = float32
 
 // Slug defines model for Slug.
 type Slug = string
@@ -34,26 +31,32 @@ type Slug = string
 type Timestamp = time.Time
 
 // UserID defines model for UserID.
-type UserID = int32
+type UserID = string
+
+// UserSegment defines model for UserSegment.
+type UserSegment struct {
+	Expires *Timestamp `json:"expires,omitempty"`
+	Slug    Slug       `json:"slug"`
+}
 
 // SegmentAssignment defines model for SegmentAssignment.
 type SegmentAssignment struct {
-	Expires Timestamp `json:"expires"`
+	Expires *Timestamp `json:"expires,omitempty"`
 }
 
 // SegmentCreation defines model for SegmentCreation.
 type SegmentCreation struct {
-	Outreach *float32 `json:"outreach,omitempty"`
+	Outreach *Outreach `json:"outreach,omitempty"`
 }
 
 // PostSegmentsSlugJSONBody defines parameters for PostSegmentsSlug.
 type PostSegmentsSlugJSONBody struct {
-	Outreach *float32 `json:"outreach,omitempty"`
+	Outreach *Outreach `json:"outreach,omitempty"`
 }
 
 // PostUsersIdSegmentsSlugJSONBody defines parameters for PostUsersIdSegmentsSlug.
 type PostUsersIdSegmentsSlugJSONBody struct {
-	Expires Timestamp `json:"expires"`
+	Expires *Timestamp `json:"expires,omitempty"`
 }
 
 // PostSegmentsSlugJSONRequestBody defines body for PostSegmentsSlug for application/json ContentType.
@@ -66,176 +69,380 @@ type PostUsersIdSegmentsSlugJSONRequestBody PostUsersIdSegmentsSlugJSONBody
 type ServerInterface interface {
 	// Delete a segment
 	// (DELETE /segments/{slug})
-	DeleteSegmentsSlug(ctx echo.Context, slug Slug) error
+	DeleteSegmentsSlug(w http.ResponseWriter, r *http.Request, slug Slug)
 	// Create a new segment
 	// (POST /segments/{slug})
-	PostSegmentsSlug(ctx echo.Context, slug Slug) error
+	PostSegmentsSlug(w http.ResponseWriter, r *http.Request, slug Slug)
 	// Create a new user
 	// (POST /users/{id})
-	PostUsersId(ctx echo.Context, id UserID) error
+	PostUsersId(w http.ResponseWriter, r *http.Request, id UserID)
 	// Get active segments assigned to a user
 	// (GET /users/{id}/segments)
-	GetUsersIdSegments(ctx echo.Context, id UserID) error
-	// Remove segment from a user
+	GetUsersIdSegments(w http.ResponseWriter, r *http.Request, id UserID)
+	// Deprive segment from a user
 	// (DELETE /users/{id}/segments/{slug})
-	DeleteUsersIdSegmentsSlug(ctx echo.Context, id UserID, slug Slug) error
+	DeleteUsersIdSegmentsSlug(w http.ResponseWriter, r *http.Request, id UserID, slug Slug)
 	// Assign segment to a user
 	// (POST /users/{id}/segments/{slug})
-	PostUsersIdSegmentsSlug(ctx echo.Context, id UserID, slug Slug) error
+	PostUsersIdSegmentsSlug(w http.ResponseWriter, r *http.Request, id UserID, slug Slug)
 }
 
-// ServerInterfaceWrapper converts echo contexts to parameters.
+// Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
+
+type Unimplemented struct{}
+
+// Delete a segment
+// (DELETE /segments/{slug})
+func (_ Unimplemented) DeleteSegmentsSlug(w http.ResponseWriter, r *http.Request, slug Slug) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create a new segment
+// (POST /segments/{slug})
+func (_ Unimplemented) PostSegmentsSlug(w http.ResponseWriter, r *http.Request, slug Slug) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create a new user
+// (POST /users/{id})
+func (_ Unimplemented) PostUsersId(w http.ResponseWriter, r *http.Request, id UserID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get active segments assigned to a user
+// (GET /users/{id}/segments)
+func (_ Unimplemented) GetUsersIdSegments(w http.ResponseWriter, r *http.Request, id UserID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Deprive segment from a user
+// (DELETE /users/{id}/segments/{slug})
+func (_ Unimplemented) DeleteUsersIdSegmentsSlug(w http.ResponseWriter, r *http.Request, id UserID, slug Slug) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Assign segment to a user
+// (POST /users/{id}/segments/{slug})
+func (_ Unimplemented) PostUsersIdSegmentsSlug(w http.ResponseWriter, r *http.Request, id UserID, slug Slug) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
-	Handler ServerInterface
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandlerFunc   func(w http.ResponseWriter, r *http.Request, err error)
 }
 
-// DeleteSegmentsSlug converts echo context to params.
-func (w *ServerInterfaceWrapper) DeleteSegmentsSlug(ctx echo.Context) error {
+type MiddlewareFunc func(http.Handler) http.Handler
+
+// DeleteSegmentsSlug operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSegmentsSlug(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var err error
-	// ------------- Path parameter "slug" -------------
-	var slug Slug
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "slug", runtime.ParamLocationPath, ctx.Param("slug"), &slug)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter slug: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.DeleteSegmentsSlug(ctx, slug)
-	return err
-}
-
-// PostSegmentsSlug converts echo context to params.
-func (w *ServerInterfaceWrapper) PostSegmentsSlug(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "slug" -------------
-	var slug Slug
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "slug", runtime.ParamLocationPath, ctx.Param("slug"), &slug)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter slug: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostSegmentsSlug(ctx, slug)
-	return err
-}
-
-// PostUsersId converts echo context to params.
-func (w *ServerInterfaceWrapper) PostUsersId(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "id" -------------
-	var id UserID
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostUsersId(ctx, id)
-	return err
-}
-
-// GetUsersIdSegments converts echo context to params.
-func (w *ServerInterfaceWrapper) GetUsersIdSegments(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "id" -------------
-	var id UserID
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetUsersIdSegments(ctx, id)
-	return err
-}
-
-// DeleteUsersIdSegmentsSlug converts echo context to params.
-func (w *ServerInterfaceWrapper) DeleteUsersIdSegmentsSlug(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "id" -------------
-	var id UserID
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
 
 	// ------------- Path parameter "slug" -------------
 	var slug Slug
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "slug", runtime.ParamLocationPath, ctx.Param("slug"), &slug)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "slug", runtime.ParamLocationPath, chi.URLParam(r, "slug"), &slug)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter slug: %s", err))
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
 	}
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.DeleteUsersIdSegmentsSlug(ctx, id, slug)
-	return err
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSegmentsSlug(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
-// PostUsersIdSegmentsSlug converts echo context to params.
-func (w *ServerInterfaceWrapper) PostUsersIdSegmentsSlug(ctx echo.Context) error {
+// PostSegmentsSlug operation middleware
+func (siw *ServerInterfaceWrapper) PostSegmentsSlug(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var err error
+
+	// ------------- Path parameter "slug" -------------
+	var slug Slug
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "slug", runtime.ParamLocationPath, chi.URLParam(r, "slug"), &slug)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostSegmentsSlug(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// PostUsersId operation middleware
+func (siw *ServerInterfaceWrapper) PostUsersId(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
 	// ------------- Path parameter "id" -------------
 	var id UserID
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, chi.URLParam(r, "id"), &id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostUsersId(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// GetUsersIdSegments operation middleware
+func (siw *ServerInterfaceWrapper) GetUsersIdSegments(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, chi.URLParam(r, "id"), &id)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUsersIdSegments(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// DeleteUsersIdSegmentsSlug operation middleware
+func (siw *ServerInterfaceWrapper) DeleteUsersIdSegmentsSlug(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, chi.URLParam(r, "id"), &id)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
 	}
 
 	// ------------- Path parameter "slug" -------------
 	var slug Slug
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "slug", runtime.ParamLocationPath, ctx.Param("slug"), &slug)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "slug", runtime.ParamLocationPath, chi.URLParam(r, "slug"), &slug)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter slug: %s", err))
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
 	}
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostUsersIdSegmentsSlug(ctx, id, slug)
-	return err
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteUsersIdSegmentsSlug(w, r, id, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
-// This is a simple interface which specifies echo.Route addition functions which
-// are present on both echo.Echo and echo.Group, since we want to allow using
-// either of them for path registration
-type EchoRouter interface {
-	CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+// PostUsersIdSegmentsSlug operation middleware
+func (siw *ServerInterfaceWrapper) PostUsersIdSegmentsSlug(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, chi.URLParam(r, "id"), &id)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slug" -------------
+	var slug Slug
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "slug", runtime.ParamLocationPath, chi.URLParam(r, "slug"), &slug)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostUsersIdSegmentsSlug(w, r, id, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
-// RegisterHandlers adds each server route to the EchoRouter.
-func RegisterHandlers(router EchoRouter, si ServerInterface) {
-	RegisterHandlersWithBaseURL(router, si, "")
+type UnescapedCookieParamError struct {
+	ParamName string
+	Err       error
 }
 
-// Registers handlers, and prepends BaseURL to the paths, so that the paths
-// can be served under a prefix.
-func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL string) {
+func (e *UnescapedCookieParamError) Error() string {
+	return fmt.Sprintf("error unescaping cookie parameter '%s'", e.ParamName)
+}
 
+func (e *UnescapedCookieParamError) Unwrap() error {
+	return e.Err
+}
+
+type UnmarshalingParamError struct {
+	ParamName string
+	Err       error
+}
+
+func (e *UnmarshalingParamError) Error() string {
+	return fmt.Sprintf("Error unmarshaling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
+}
+
+func (e *UnmarshalingParamError) Unwrap() error {
+	return e.Err
+}
+
+type RequiredParamError struct {
+	ParamName string
+}
+
+func (e *RequiredParamError) Error() string {
+	return fmt.Sprintf("Query argument %s is required, but not found", e.ParamName)
+}
+
+type RequiredHeaderError struct {
+	ParamName string
+	Err       error
+}
+
+func (e *RequiredHeaderError) Error() string {
+	return fmt.Sprintf("Header parameter %s is required, but not found", e.ParamName)
+}
+
+func (e *RequiredHeaderError) Unwrap() error {
+	return e.Err
+}
+
+type InvalidParamFormatError struct {
+	ParamName string
+	Err       error
+}
+
+func (e *InvalidParamFormatError) Error() string {
+	return fmt.Sprintf("Invalid format for parameter %s: %s", e.ParamName, e.Err.Error())
+}
+
+func (e *InvalidParamFormatError) Unwrap() error {
+	return e.Err
+}
+
+type TooManyValuesForParamError struct {
+	ParamName string
+	Count     int
+}
+
+func (e *TooManyValuesForParamError) Error() string {
+	return fmt.Sprintf("Expected one value for %s, got %d", e.ParamName, e.Count)
+}
+
+// Handler creates http.Handler with routing matching OpenAPI spec.
+func Handler(si ServerInterface) http.Handler {
+	return HandlerWithOptions(si, ChiServerOptions{})
+}
+
+type ChiServerOptions struct {
+	BaseURL          string
+	BaseRouter       chi.Router
+	Middlewares      []MiddlewareFunc
+	ErrorHandlerFunc func(w http.ResponseWriter, r *http.Request, err error)
+}
+
+// HandlerFromMux creates http.Handler with routing matching OpenAPI spec based on the provided mux.
+func HandlerFromMux(si ServerInterface, r chi.Router) http.Handler {
+	return HandlerWithOptions(si, ChiServerOptions{
+		BaseRouter: r,
+	})
+}
+
+func HandlerFromMuxWithBaseURL(si ServerInterface, r chi.Router, baseURL string) http.Handler {
+	return HandlerWithOptions(si, ChiServerOptions{
+		BaseURL:    baseURL,
+		BaseRouter: r,
+	})
+}
+
+// HandlerWithOptions creates http.Handler with additional options
+func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handler {
+	r := options.BaseRouter
+
+	if r == nil {
+		r = chi.NewRouter()
+	}
+	if options.ErrorHandlerFunc == nil {
+		options.ErrorHandlerFunc = func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+	}
 	wrapper := ServerInterfaceWrapper{
-		Handler: si,
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	router.DELETE(baseURL+"/segments/:slug", wrapper.DeleteSegmentsSlug)
-	router.POST(baseURL+"/segments/:slug", wrapper.PostSegmentsSlug)
-	router.POST(baseURL+"/users/:id", wrapper.PostUsersId)
-	router.GET(baseURL+"/users/:id/segments", wrapper.GetUsersIdSegments)
-	router.DELETE(baseURL+"/users/:id/segments/:slug", wrapper.DeleteUsersIdSegmentsSlug)
-	router.POST(baseURL+"/users/:id/segments/:slug", wrapper.PostUsersIdSegmentsSlug)
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/segments/{slug}", wrapper.DeleteSegmentsSlug)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/segments/{slug}", wrapper.PostSegmentsSlug)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/users/{id}", wrapper.PostUsersId)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/users/{id}/segments", wrapper.GetUsersIdSegments)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/users/{id}/segments/{slug}", wrapper.DeleteUsersIdSegmentsSlug)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/users/{id}/segments/{slug}", wrapper.PostUsersIdSegmentsSlug)
+	})
 
+	return r
 }
 
 type DeleteSegmentsSlugRequestObject struct {
@@ -319,7 +526,7 @@ type GetUsersIdSegmentsResponseObject interface {
 	VisitGetUsersIdSegmentsResponse(w http.ResponseWriter) error
 }
 
-type GetUsersIdSegments200JSONResponse []Segment
+type GetUsersIdSegments200JSONResponse []UserSegment
 
 func (response GetUsersIdSegments200JSONResponse) VisitGetUsersIdSegmentsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -409,7 +616,7 @@ type StrictServerInterface interface {
 	// Get active segments assigned to a user
 	// (GET /users/{id}/segments)
 	GetUsersIdSegments(ctx context.Context, request GetUsersIdSegmentsRequestObject) (GetUsersIdSegmentsResponseObject, error)
-	// Remove segment from a user
+	// Deprive segment from a user
 	// (DELETE /users/{id}/segments/{slug})
 	DeleteUsersIdSegmentsSlug(ctx context.Context, request DeleteUsersIdSegmentsSlugRequestObject) (DeleteUsersIdSegmentsSlugResponseObject, error)
 	// Assign segment to a user
@@ -417,198 +624,223 @@ type StrictServerInterface interface {
 	PostUsersIdSegmentsSlug(ctx context.Context, request PostUsersIdSegmentsSlugRequestObject) (PostUsersIdSegmentsSlugResponseObject, error)
 }
 
-type StrictHandlerFunc = runtime.StrictEchoHandlerFunc
-type StrictMiddlewareFunc = runtime.StrictEchoMiddlewareFunc
+type StrictHandlerFunc = runtime.StrictHttpHandlerFunc
+type StrictMiddlewareFunc = runtime.StrictHttpMiddlewareFunc
+
+type StrictHTTPServerOptions struct {
+	RequestErrorHandlerFunc  func(w http.ResponseWriter, r *http.Request, err error)
+	ResponseErrorHandlerFunc func(w http.ResponseWriter, r *http.Request, err error)
+}
 
 func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
-	return &strictHandler{ssi: ssi, middlewares: middlewares}
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: StrictHTTPServerOptions{
+		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		},
+		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		},
+	}}
+}
+
+func NewStrictHandlerWithOptions(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc, options StrictHTTPServerOptions) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: options}
 }
 
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+	options     StrictHTTPServerOptions
 }
 
 // DeleteSegmentsSlug operation middleware
-func (sh *strictHandler) DeleteSegmentsSlug(ctx echo.Context, slug Slug) error {
+func (sh *strictHandler) DeleteSegmentsSlug(w http.ResponseWriter, r *http.Request, slug Slug) {
 	var request DeleteSegmentsSlugRequestObject
 
 	request.Slug = slug
 
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteSegmentsSlug(ctx.Request().Context(), request.(DeleteSegmentsSlugRequestObject))
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteSegmentsSlug(ctx, request.(DeleteSegmentsSlugRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "DeleteSegmentsSlug")
 	}
 
-	response, err := handler(ctx, request)
+	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
-		return err
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DeleteSegmentsSlugResponseObject); ok {
-		return validResponse.VisitDeleteSegmentsSlugResponse(ctx.Response())
+		if err := validResponse.VisitDeleteSegmentsSlugResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
 	} else if response != nil {
-		return fmt.Errorf("Unexpected response type: %T", response)
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("Unexpected response type: %T", response))
 	}
-	return nil
 }
 
 // PostSegmentsSlug operation middleware
-func (sh *strictHandler) PostSegmentsSlug(ctx echo.Context, slug Slug) error {
+func (sh *strictHandler) PostSegmentsSlug(w http.ResponseWriter, r *http.Request, slug Slug) {
 	var request PostSegmentsSlugRequestObject
 
 	request.Slug = slug
 
 	var body PostSegmentsSlugJSONRequestBody
-	if err := ctx.Bind(&body); err != nil {
-		return err
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
 	}
 	request.Body = &body
 
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PostSegmentsSlug(ctx.Request().Context(), request.(PostSegmentsSlugRequestObject))
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostSegmentsSlug(ctx, request.(PostSegmentsSlugRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "PostSegmentsSlug")
 	}
 
-	response, err := handler(ctx, request)
+	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
-		return err
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PostSegmentsSlugResponseObject); ok {
-		return validResponse.VisitPostSegmentsSlugResponse(ctx.Response())
+		if err := validResponse.VisitPostSegmentsSlugResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
 	} else if response != nil {
-		return fmt.Errorf("Unexpected response type: %T", response)
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("Unexpected response type: %T", response))
 	}
-	return nil
 }
 
 // PostUsersId operation middleware
-func (sh *strictHandler) PostUsersId(ctx echo.Context, id UserID) error {
+func (sh *strictHandler) PostUsersId(w http.ResponseWriter, r *http.Request, id UserID) {
 	var request PostUsersIdRequestObject
 
 	request.Id = id
 
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PostUsersId(ctx.Request().Context(), request.(PostUsersIdRequestObject))
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostUsersId(ctx, request.(PostUsersIdRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "PostUsersId")
 	}
 
-	response, err := handler(ctx, request)
+	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
-		return err
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PostUsersIdResponseObject); ok {
-		return validResponse.VisitPostUsersIdResponse(ctx.Response())
+		if err := validResponse.VisitPostUsersIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
 	} else if response != nil {
-		return fmt.Errorf("Unexpected response type: %T", response)
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("Unexpected response type: %T", response))
 	}
-	return nil
 }
 
 // GetUsersIdSegments operation middleware
-func (sh *strictHandler) GetUsersIdSegments(ctx echo.Context, id UserID) error {
+func (sh *strictHandler) GetUsersIdSegments(w http.ResponseWriter, r *http.Request, id UserID) {
 	var request GetUsersIdSegmentsRequestObject
 
 	request.Id = id
 
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetUsersIdSegments(ctx.Request().Context(), request.(GetUsersIdSegmentsRequestObject))
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUsersIdSegments(ctx, request.(GetUsersIdSegmentsRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "GetUsersIdSegments")
 	}
 
-	response, err := handler(ctx, request)
+	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
-		return err
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetUsersIdSegmentsResponseObject); ok {
-		return validResponse.VisitGetUsersIdSegmentsResponse(ctx.Response())
+		if err := validResponse.VisitGetUsersIdSegmentsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
 	} else if response != nil {
-		return fmt.Errorf("Unexpected response type: %T", response)
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("Unexpected response type: %T", response))
 	}
-	return nil
 }
 
 // DeleteUsersIdSegmentsSlug operation middleware
-func (sh *strictHandler) DeleteUsersIdSegmentsSlug(ctx echo.Context, id UserID, slug Slug) error {
+func (sh *strictHandler) DeleteUsersIdSegmentsSlug(w http.ResponseWriter, r *http.Request, id UserID, slug Slug) {
 	var request DeleteUsersIdSegmentsSlugRequestObject
 
 	request.Id = id
 	request.Slug = slug
 
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteUsersIdSegmentsSlug(ctx.Request().Context(), request.(DeleteUsersIdSegmentsSlugRequestObject))
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteUsersIdSegmentsSlug(ctx, request.(DeleteUsersIdSegmentsSlugRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "DeleteUsersIdSegmentsSlug")
 	}
 
-	response, err := handler(ctx, request)
+	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
-		return err
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DeleteUsersIdSegmentsSlugResponseObject); ok {
-		return validResponse.VisitDeleteUsersIdSegmentsSlugResponse(ctx.Response())
+		if err := validResponse.VisitDeleteUsersIdSegmentsSlugResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
 	} else if response != nil {
-		return fmt.Errorf("Unexpected response type: %T", response)
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("Unexpected response type: %T", response))
 	}
-	return nil
 }
 
 // PostUsersIdSegmentsSlug operation middleware
-func (sh *strictHandler) PostUsersIdSegmentsSlug(ctx echo.Context, id UserID, slug Slug) error {
+func (sh *strictHandler) PostUsersIdSegmentsSlug(w http.ResponseWriter, r *http.Request, id UserID, slug Slug) {
 	var request PostUsersIdSegmentsSlugRequestObject
 
 	request.Id = id
 	request.Slug = slug
 
 	var body PostUsersIdSegmentsSlugJSONRequestBody
-	if err := ctx.Bind(&body); err != nil {
-		return err
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
 	}
 	request.Body = &body
 
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PostUsersIdSegmentsSlug(ctx.Request().Context(), request.(PostUsersIdSegmentsSlugRequestObject))
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostUsersIdSegmentsSlug(ctx, request.(PostUsersIdSegmentsSlugRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "PostUsersIdSegmentsSlug")
 	}
 
-	response, err := handler(ctx, request)
+	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
-		return err
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PostUsersIdSegmentsSlugResponseObject); ok {
-		return validResponse.VisitPostUsersIdSegmentsSlugResponse(ctx.Response())
+		if err := validResponse.VisitPostUsersIdSegmentsSlugResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
 	} else if response != nil {
-		return fmt.Errorf("Unexpected response type: %T", response)
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("Unexpected response type: %T", response))
 	}
-	return nil
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
