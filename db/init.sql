@@ -15,7 +15,6 @@ create table assigned_segments (
 
 alter table assigned_segments enable row level security;
 
-
 create policy filter_expired_assignments on assigned_segments
     for select
     using (expires_at > now() or expires_at is null);
