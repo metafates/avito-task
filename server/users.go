@@ -77,6 +77,21 @@ func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.Use
 	return segments, nil
 }
 
+func (a *Server) userHasSegment(ctx context.Context, user api.UserID, segment api.Slug) (bool, error) {
+	segments, err := a.assignedSegments(ctx, user)
+	if err != nil {
+		return false, err
+	}
+
+	for _, s := range segments {
+		if s.Slug == segment {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func (a *Server) assignSegment(
 	ctx context.Context,
 	user api.UserID,

@@ -148,17 +148,15 @@ func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUs
 		}, nil
 	}
 
-	segments, err := a.assignedSegments(ctx, request.Id)
+	hasSegment, err := a.userHasSegment(ctx, request.Id, request.Slug)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, segment := range segments {
-		if segment.Slug == request.Slug {
-			return api.PostUsersIdSegmentsSlug409JSONResponse{
-				Error: "segment is already assigned",
-			}, nil
-		}
+	if hasSegment {
+		return api.PostUsersIdSegmentsSlug409JSONResponse{
+			Error: "segment is already assigned",
+		}, nil
 	}
 
 	if err = a.assignSegment(

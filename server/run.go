@@ -20,16 +20,20 @@ func Run(ctx context.Context, addr string, options Options) error {
 	e := echo.New()
 	e.Use(middleware.OapiRequestValidatorWithOptions(swagger, &middleware.Options{
 		ErrorHandler: func(c echo.Context, err *echo.HTTPError) error {
-			type Error struct {
-				Error string
-			}
-
-			return c.JSON(err.Code, Error{
+			log.Logger.Err(err).Send()
+			return c.JSON(err.Code, api.Error{
 				Error: "internal server error",
 			})
 		},
 	}))
-	apiHandler := api.NewStrictHandler(New(options), nil)
+
+	apiHandler := api.NewStrictHandler(
+		New(options),
+		[]api.StrictMiddlewareFunc{
+			middlewareLogger,
+		},
+	)
+
 	api.RegisterHandlers(e, apiHandler)
 
 	g, gCtx := errgroup.WithContext(ctx)

@@ -5,17 +5,15 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"github.com/metafates/avito-task/config"
 	"github.com/metafates/avito-task/db"
 	"github.com/metafates/avito-task/log"
 	"github.com/metafates/avito-task/server"
-	api "github.com/metafates/avito-task/server"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer stop()
 
 	log.Logger.Info().Msg("loading config")
@@ -31,7 +29,7 @@ func main() {
 	}
 
 	log.Logger.Info().Msg("starting the server")
-	err = server.Run(ctx, net.JoinHostPort("0.0.0.0", cfg.Port), api.Options{
+	err = server.Run(ctx, net.JoinHostPort("0.0.0.0", cfg.Port), server.Options{
 		Connections: dbConnections,
 	})
 
