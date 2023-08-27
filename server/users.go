@@ -1,4 +1,4 @@
-package api
+package server
 
 import (
 	"context"
@@ -6,9 +6,10 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/metafates/avito-task/db"
+	"github.com/metafates/avito-task/server/api"
 )
 
-func (a *API) userExists(ctx context.Context, id UserID) (bool, error) {
+func (a *Server) userExists(ctx context.Context, id api.UserID) (bool, error) {
 	sql, args, err := a.
 		psql().
 		Select("1").
@@ -30,7 +31,7 @@ func (a *API) userExists(ctx context.Context, id UserID) (bool, error) {
 	return exists, nil
 }
 
-func (a *API) createUser(ctx context.Context, id UserID) error {
+func (a *Server) createUser(ctx context.Context, id api.UserID) error {
 	// automatically assign segments to a user based on their outreach
 	sql, args, err := a.
 		psql().
@@ -46,7 +47,7 @@ func (a *API) createUser(ctx context.Context, id UserID) error {
 	return err
 }
 
-func (a *API) assignedSegments(ctx context.Context, id UserID) ([]UserSegment, error) {
+func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.UserSegment, error) {
 	sql, args, err := a.
 		psql().
 		Select("segment_slug", "expires_at").
@@ -62,9 +63,9 @@ func (a *API) assignedSegments(ctx context.Context, id UserID) ([]UserSegment, e
 		return nil, err
 	}
 
-	var segments []UserSegment
+	var segments []api.UserSegment
 	for rows.Next() {
-		var segment UserSegment
+		var segment api.UserSegment
 
 		if err = rows.Scan(&segment.Slug, &segment.Expires); err != nil {
 			return nil, err
@@ -76,11 +77,11 @@ func (a *API) assignedSegments(ctx context.Context, id UserID) ([]UserSegment, e
 	return segments, nil
 }
 
-func (a *API) assignSegment(
+func (a *Server) assignSegment(
 	ctx context.Context,
-	user UserID,
-	segment Slug,
-	assignment SegmentAssignment,
+	user api.UserID,
+	segment api.Slug,
+	assignment api.SegmentAssignment,
 ) error {
 	colums := []string{"user_id", "segment_slug"}
 	values := []any{user, segment}
@@ -104,10 +105,10 @@ func (a *API) assignSegment(
 	return err
 }
 
-func (a *API) depriveSegment(
+func (a *Server) depriveSegment(
 	ctx context.Context,
-	user UserID,
-	segment Slug,
+	user api.UserID,
+	segment api.Slug,
 ) error {
 	sql, args, err := a.
 		psql().

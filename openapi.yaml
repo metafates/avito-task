@@ -20,6 +20,10 @@ paths:
           description: Segment succesfully created
         '409':
           description: Segment with this slug exists already
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       summary: Delete a segment
       responses:
@@ -27,6 +31,10 @@ paths:
           description: Segment successfully deleted
         '404':
           description: Segment with the given was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /users/{id}:
     parameters:
       - in: path
@@ -42,6 +50,10 @@ paths:
           description: User created
         '409':
           description: User exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /users/{id}/segments:
     parameters:
       - in: path
@@ -63,7 +75,10 @@ paths:
                   $ref: '#/components/schemas/UserSegment'
         '404':
           description: User not found
-
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /users/{id}/segments/{slug}:
     parameters:
       - in: path
@@ -87,8 +102,16 @@ paths:
           description: Segment assigned
         '409':
           description: Segment already assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Either user or segment slug was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       summary: Deprive segment from a user
       responses:
@@ -96,7 +119,10 @@ paths:
           description: Segment deprived
         '404':
           description: Either user or segment slug was not found
-
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Timestamp:

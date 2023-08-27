@@ -26,6 +26,11 @@ func run(name string, args ...string) error {
 	return cmd.Run()
 }
 
+func inPath(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
 // Spin up docker containers and run tests
 func Test() error {
 	err := run("docker", "compose", "up", "-d", "--no-deps", "--build", "server")
@@ -105,14 +110,18 @@ func Generate() error {
 func installGenerators() error {
 	log.Logger.Info().Msg("installing dependencies")
 
-	err := run("go", "install", "github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest")
-	if err != nil {
-		return err
+	if !inPath("oapi-codegen") {
+		err := run("go", "install", "github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest")
+		if err != nil {
+			return err
+		}
 	}
 
-	err = run("go", "install", "github.com/zeromicro/go-zero/tools/goctl@latest")
-	if err != nil {
-		return err
+	if !inPath("goctl") {
+		err := run("go", "install", "github.com/zeromicro/go-zero/tools/goctl@latest")
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

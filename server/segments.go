@@ -1,4 +1,4 @@
-package api
+package server
 
 import (
 	"context"
@@ -6,9 +6,10 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/metafates/avito-task/db"
+	"github.com/metafates/avito-task/server/api"
 )
 
-func (a *API) segmentExists(ctx context.Context, slug Slug) (bool, error) {
+func (a *Server) segmentExists(ctx context.Context, slug api.Slug) (bool, error) {
 	sql, args, err := a.
 		psql().
 		Select("1").
@@ -30,7 +31,7 @@ func (a *API) segmentExists(ctx context.Context, slug Slug) (bool, error) {
 	return exists, nil
 }
 
-func (a *API) createSegment(ctx context.Context, slug Slug, segment SegmentCreation) error {
+func (a *Server) createSegment(ctx context.Context, slug api.Slug, segment api.SegmentCreation) error {
 	colums := []string{"slug"}
 	values := []any{slug}
 
@@ -53,7 +54,7 @@ func (a *API) createSegment(ctx context.Context, slug Slug, segment SegmentCreat
 	return err
 }
 
-func (a *API) deleteSegment(ctx context.Context, slug Slug) error {
+func (a *Server) deleteSegment(ctx context.Context, slug api.Slug) error {
 	sql, args, err := a.
 		psql().
 		Delete(db.TableSegments).

@@ -11,7 +11,7 @@ import (
 	"github.com/metafates/avito-task/db"
 	"github.com/metafates/avito-task/log"
 	"github.com/metafates/avito-task/server"
-	"github.com/metafates/avito-task/server/api"
+	api "github.com/metafates/avito-task/server"
 )
 
 func main() {
