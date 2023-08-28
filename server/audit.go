@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -39,7 +40,7 @@ func (a audit) CSV() (string, error) {
 
 	for _, entry := range a {
 		record := []string{
-			entry.UserID,
+			strconv.Itoa(int(entry.UserID)),
 			entry.SegmentSlug,
 			string(entry.Action),
 			entry.Stamp.Format(time.RFC3339), // as defined by openapi format date-time which uses RFC3339
@@ -58,22 +59,27 @@ func (a audit) CSV() (string, error) {
 	return buf.String(), nil
 }
 
-// TODO: implement, use time range
-func (s *Server) audit(ctx context.Context, from *time.Time, to *time.Time) (audit, error) {
+type auditFilter struct {
+	From, To *time.Time
+	User     *api.UserID
+}
+
+func (s *Server) audit(ctx context.Context, filter auditFilter) (audit, error) {
 	query := s.
 		psql().
 		Select("user_id", "segment_slug", "action", "stamp", "expires_at").
 		From(db.TableAssignmentsAudit)
 
-	if from != nil && to != nil {
-		query = query.Where(squirrel.And{
-			squirrel.GtOrEq{"stamp": from},
-			squirrel.LtOrEq{"stamp": to},
-		})
-	} else if from != nil {
-		query = query.Where(squirrel.GtOrEq{"stamp": from})
-	} else if to != nil {
-		query = query.Where(squirrel.LtOrEq{"stamp": to})
+	if filter.From != nil {
+		query = query.Where(squirrel.GtOrEq{"stamp": filter.From})
+	}
+
+	if filter.To != nil {
+		query = query.Where(squirrel.LtOrEq{"stamp": filter.To})
+	}
+
+	if filter.User != nil {
+		query = query.Where(squirrel.Eq{"user_id": filter.User})
 	}
 
 	sql, args, err := query.ToSql()
@@ -119,8 +125,10 @@ func (s *Server) audit(ctx context.Context, from *time.Time, to *time.Time) (aud
 			continue
 		}
 
+		// mark expired segment as deprivation
+
 		// TODO: should be handled from the sql
-		if to != nil && expiresAt.After(*to) {
+		if filter.To != nil && expiresAt.After(*filter.To) {
 			continue
 		}
 

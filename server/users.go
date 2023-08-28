@@ -113,11 +113,11 @@ func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.Use
 		return nil, err
 	}
 
-	var segments []api.UserSegment
+	segments := make([]api.UserSegment, 0)
 	for rows.Next() {
 		var segment api.UserSegment
 
-		if err = rows.Scan(&segment.Slug, &segment.Expires); err != nil {
+		if err = rows.Scan(&segment.Slug, &segment.ExpiresAt); err != nil {
 			return nil, err
 		}
 
@@ -153,9 +153,9 @@ func (a *Server) assignSegment(
 	colums := []string{"user_id", "segment_slug"}
 	values := []any{user, segment}
 
-	if assignment.Expires != nil {
+	if assignment.ExpiresAt != nil {
 		colums = append(colums, "expires_at")
-		values = append(values, assignment.Expires)
+		values = append(values, assignment.ExpiresAt)
 	}
 
 	sql, args, err := a.

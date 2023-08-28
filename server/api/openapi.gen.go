@@ -44,17 +44,20 @@ type Slug = string
 type Timestamp = time.Time
 
 // UserID defines model for UserID.
-type UserID = string
+type UserID = int32
 
 // UserSegment defines model for UserSegment.
 type UserSegment struct {
-	Expires *Timestamp `json:"expires,omitempty"`
-	Slug    Slug       `json:"slug"`
+	ExpiresAt *Timestamp `json:"expiresAt,omitempty"`
+	Slug      Slug       `json:"slug"`
 }
+
+// User defines model for User.
+type User = UserID
 
 // SegmentAssignment defines model for SegmentAssignment.
 type SegmentAssignment struct {
-	Expires *Timestamp `json:"expires,omitempty"`
+	ExpiresAt *Timestamp `json:"expiresAt,omitempty"`
 }
 
 // SegmentCreation defines model for SegmentCreation.
@@ -69,6 +72,9 @@ type GetAuditParams struct {
 
 	// To End date of the audit window
 	To *Date `form:"to,omitempty" json:"to,omitempty"`
+
+	// User Show audit for specifc user with the given id
+	User *UserID `form:"user,omitempty" json:"user,omitempty"`
 }
 
 // PostSegmentsSlugJSONBody defines parameters for PostSegmentsSlug.
@@ -78,7 +84,7 @@ type PostSegmentsSlugJSONBody struct {
 
 // PostUsersIdSegmentsSlugJSONBody defines parameters for PostUsersIdSegmentsSlug.
 type PostUsersIdSegmentsSlugJSONBody struct {
-	Expires *Timestamp `json:"expires,omitempty"`
+	ExpiresAt *Timestamp `json:"expiresAt,omitempty"`
 }
 
 // PostSegmentsSlugJSONRequestBody defines body for PostSegmentsSlug for application/json ContentType.
@@ -100,16 +106,16 @@ type ServerInterface interface {
 	PostSegmentsSlug(ctx echo.Context, slug Slug) error
 	// Create a new user
 	// (POST /users/{id})
-	PostUsersId(ctx echo.Context, id UserID) error
+	PostUsersId(ctx echo.Context, id User) error
 	// Get active segments assigned to a user
 	// (GET /users/{id}/segments)
-	GetUsersIdSegments(ctx echo.Context, id UserID) error
+	GetUsersIdSegments(ctx echo.Context, id User) error
 	// Deprive segment from a user
 	// (DELETE /users/{id}/segments/{slug})
-	DeleteUsersIdSegmentsSlug(ctx echo.Context, id UserID, slug Slug) error
+	DeleteUsersIdSegmentsSlug(ctx echo.Context, id User, slug Slug) error
 	// Assign segment to a user
 	// (POST /users/{id}/segments/{slug})
-	PostUsersIdSegmentsSlug(ctx echo.Context, id UserID, slug Slug) error
+	PostUsersIdSegmentsSlug(ctx echo.Context, id User, slug Slug) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -135,6 +141,13 @@ func (w *ServerInterfaceWrapper) GetAudit(ctx echo.Context) error {
 	err = runtime.BindQueryParameter("form", true, false, "to", ctx.QueryParams(), &params.To)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter to: %s", err))
+	}
+
+	// ------------- Optional query parameter "user" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "user", ctx.QueryParams(), &params.User)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter user: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
@@ -178,7 +191,7 @@ func (w *ServerInterfaceWrapper) PostSegmentsSlug(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) PostUsersId(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "id" -------------
-	var id UserID
+	var id User
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
 	if err != nil {
@@ -194,7 +207,7 @@ func (w *ServerInterfaceWrapper) PostUsersId(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) GetUsersIdSegments(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "id" -------------
-	var id UserID
+	var id User
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
 	if err != nil {
@@ -210,7 +223,7 @@ func (w *ServerInterfaceWrapper) GetUsersIdSegments(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) DeleteUsersIdSegmentsSlug(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "id" -------------
-	var id UserID
+	var id User
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
 	if err != nil {
@@ -234,7 +247,7 @@ func (w *ServerInterfaceWrapper) DeleteUsersIdSegmentsSlug(ctx echo.Context) err
 func (w *ServerInterfaceWrapper) PostUsersIdSegmentsSlug(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "id" -------------
-	var id UserID
+	var id User
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
 	if err != nil {
@@ -371,7 +384,7 @@ func (response PostSegmentsSlug409JSONResponse) VisitPostSegmentsSlugResponse(w 
 }
 
 type PostUsersIdRequestObject struct {
-	Id UserID `json:"id"`
+	Id User `json:"id"`
 }
 
 type PostUsersIdResponseObject interface {
@@ -396,7 +409,7 @@ func (response PostUsersId409JSONResponse) VisitPostUsersIdResponse(w http.Respo
 }
 
 type GetUsersIdSegmentsRequestObject struct {
-	Id UserID `json:"id"`
+	Id User `json:"id"`
 }
 
 type GetUsersIdSegmentsResponseObject interface {
@@ -422,8 +435,8 @@ func (response GetUsersIdSegments404JSONResponse) VisitGetUsersIdSegmentsRespons
 }
 
 type DeleteUsersIdSegmentsSlugRequestObject struct {
-	Id   UserID `json:"id"`
-	Slug Slug   `json:"slug"`
+	Id   User `json:"id"`
+	Slug Slug `json:"slug"`
 }
 
 type DeleteUsersIdSegmentsSlugResponseObject interface {
@@ -448,8 +461,8 @@ func (response DeleteUsersIdSegmentsSlug404JSONResponse) VisitDeleteUsersIdSegme
 }
 
 type PostUsersIdSegmentsSlugRequestObject struct {
-	Id   UserID `json:"id"`
-	Slug Slug   `json:"slug"`
+	Id   User `json:"id"`
+	Slug Slug `json:"slug"`
 	Body *PostUsersIdSegmentsSlugJSONRequestBody
 }
 
@@ -611,7 +624,7 @@ func (sh *strictHandler) PostSegmentsSlug(ctx echo.Context, slug Slug) error {
 }
 
 // PostUsersId operation middleware
-func (sh *strictHandler) PostUsersId(ctx echo.Context, id UserID) error {
+func (sh *strictHandler) PostUsersId(ctx echo.Context, id User) error {
 	var request PostUsersIdRequestObject
 
 	request.Id = id
@@ -636,7 +649,7 @@ func (sh *strictHandler) PostUsersId(ctx echo.Context, id UserID) error {
 }
 
 // GetUsersIdSegments operation middleware
-func (sh *strictHandler) GetUsersIdSegments(ctx echo.Context, id UserID) error {
+func (sh *strictHandler) GetUsersIdSegments(ctx echo.Context, id User) error {
 	var request GetUsersIdSegmentsRequestObject
 
 	request.Id = id
@@ -661,7 +674,7 @@ func (sh *strictHandler) GetUsersIdSegments(ctx echo.Context, id UserID) error {
 }
 
 // DeleteUsersIdSegmentsSlug operation middleware
-func (sh *strictHandler) DeleteUsersIdSegmentsSlug(ctx echo.Context, id UserID, slug Slug) error {
+func (sh *strictHandler) DeleteUsersIdSegmentsSlug(ctx echo.Context, id User, slug Slug) error {
 	var request DeleteUsersIdSegmentsSlugRequestObject
 
 	request.Id = id
@@ -687,7 +700,7 @@ func (sh *strictHandler) DeleteUsersIdSegmentsSlug(ctx echo.Context, id UserID, 
 }
 
 // PostUsersIdSegmentsSlug operation middleware
-func (sh *strictHandler) PostUsersIdSegmentsSlug(ctx echo.Context, id UserID, slug Slug) error {
+func (sh *strictHandler) PostUsersIdSegmentsSlug(ctx echo.Context, id User, slug Slug) error {
 	var request PostUsersIdSegmentsSlugRequestObject
 
 	request.Id = id
@@ -721,22 +734,24 @@ func (sh *strictHandler) PostUsersIdSegmentsSlug(ctx echo.Context, id UserID, sl
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/8xYTW/jNhD9K8S0R3XltHupbukmKHLaAtn2ssiBK45sbk1SyxnZMQz994KkZMeKLNtB",
-	"YeQUgubHm3lv5lHZQulM7SxaJii24PFHg8R/OKUxTjzi3KDlWyI9t2EUJktnuRvKul7qUrJ2Nv9OzoY5",
-	"KhdoZBjV3tXouTsLn2vt0/BnjxUU8FO+vz5P2yj/og0SS1ND22bAmxqhAPftO5YMbZhSSKXXdbgTCkjQ",
-	"BCWggp2QoiH00GY9+k8eZVr9ZuyuYY+yXJwC/7lfdxb2CAyFFBbXfQRxZ3dcuO3T4z/hT+W8kQwFlLSC",
-	"3dHEXtt5CPVOMh6sU2FiZOG9986PkNNPDza0WRSF9qig+Note3oVWwafX2RoB6JaOsmQgZHP2jQGipsM",
-	"jLZpPNudYhvzrWNs2cxHUGSwV8UwyF9Ym9FI/yb0D3ejp4WfOnH8HzrNgDrcUxtibMOExo1Po1rRtnIR",
-	"veZl+O12pdmJL0ghoyv0lEQ0+3DzYRYwuBqtrDUU8FucyqCWvIhx5LJROoY6x/gnxBuV/6CggD+Rb+OC",
-	"sMVLg4yeoPi6Hej1kaVnEZIuXCV4gSKeK9baKreGABkK+NGg30AGVpoAu/LOQPaisqZyFGXcttnw5nur",
-	"Lr2X3aW3PgVqqHaWEvu/zmaDlsH4zHmowINWMXV0KN+xrhXxu0qUC2nnSKnqG2Ok3yRCuhAHS/KuS1C+",
-	"Dcppw/UKl5iK/5DVuzjfyZyi+sYDHJDcdVJqyhKJqma53Ih0hwoy+zj7eFEjncpOakYj+elBrDUvIuFz",
-	"vUIrQsxiLUlYx6JyjVWDxKWYhdx301OS7qNN6YlCCmWz1xH1ieuLln2D5yqrq/mnDGpHI5X3lyN+xVDv",
-	"wZtjpx/YdD50ufYVyzenWE4kl9GOOpJ/vzrJmhK/+KyJScilR6k2A4KPWmYeTJ/yrVaxKCZJD+1fPNyF",
-	"x8La+X8jgHHytXoz9Z39nCA/rKIHBedwFmFfm6R4aaJkior05DrkYdespoynS0BfBHCyB0/HqBkNnUPN",
-	"475BdN4rvZebCZ2SkPGtierwlXmVhhhpONb1ol2UrFfYl8QxrO+pLI6I5WxnGyjnYoNTWHu9uqKp3Wte",
-	"oI9cCOd3nyxnmFoEutsQXlTvk9PsHdrrMZm8zWVffAm3l4itL8ckttn1zFXvnFSkD5t3qfcrvzj6jOxZ",
-	"OSi44/9TaNv2vwAAAP//BNZyMDQRAAA=",
+	"H4sIAAAAAAAC/8xXTXPbNhD9Kxi0R8aUk1zKU53I0/FMO+lUaS8ZH2BySSIhAAZYSlY9/O+dBUBLoqgP",
+	"O6knJ0nQEvt23+7b5QPPjWqNBo2OZw+8FVYoQLD+16LpKvoswOVWtiiN5hlfQKVAI3P0b8IlnbUCa55w",
+	"LRTwjMd/LHztpIWCZ2g7SLjLa1CCLvzZQskz/lO68Z6Gf13qnfZ9wv92YPe90ym7mTM0bGXsF7aS3vME",
+	"Clk8GwM5uZnznmDQDeDwnSkkhKyE+K+ck5Wmb3SYG43xq2jbRuaC8KafHYF+2HLbWtOCxXgX3LfSgrvC",
+	"U4g+SgUOhWp9anDdUoTm7jPkGGDuZimAYy5ShYYJ1lE++2TA/96CCNbPRm86tCDy+hT4D4PdWdg9MGCC",
+	"aVgNEfgn43Xk7f3iH/oojVUCecZzt+SPVzu0UlcU6lwg7NgVdDBheG2tsRP0DMejB/rtwvoUzW73Ykv4",
+	"h60MPYIoGyOQJ1yJe6k6xbPLhCupw/fZ4y26U3eRsdiHSurfQVdY+0f2gtjUyDjkVyjVZNyx0LftpcY3",
+	"rze2UiNUAQYZx+L5PpWcBKU4VxC2U+4fvJ2sJrhHsFo0c5N7ZJ1teMZrxNZlaVpJrLu7i9yoVAGKUiC4",
+	"VCwlmlco3Jf0rjF3qRJSp39dX83/uL5QBQGVujRDp4jcBwlKSLp5ufz3ooDlrxX9povJHiU2BOyKbmYf",
+	"wRHhS7Au1Pjs4vJiRnamBS1ayTP+xh8lXsQ87lR0hfSeKvAflG7fmDcFz/hvgFfeINlR7U97co3CIqMq",
+	"YKZkWAPz97KV1IVZDdL5tQO73mhnaY3i56ql77K+T8aer3XxVL9ovtnrojar6Ko0lrkWclnmXv38sPBQ",
+	"KrkEzfyEmILhpfLJw+KWStS1RrvQEq9ns5G4ItxjSlq1I6rHLiehm9J3H58pWV4LXYEL+tgpJew61EZM",
+	"wcgkjXrq0gfqoD7M1waCTO4W2Nyfx4Z3i2Gm7wd4YD3o8hycK7umWbPgw3fS29nbJ42cY9kJsj2RnwHE",
+	"iHCKma2EY9pQdXS6GCUuxMzEZu7sddcUno1JVKvbhLfGTXTtn8bhXkqHBWN9KN6dHSQdD/B+j5bLU7QE",
+	"VnI/aSMrv7w4K9IFQuBeOnRMNBZEsR4xcnAbSKlJXfogi368uZ5mye+Wx1kiE3dT8HOS65fSl86mdxpy",
+	"dyxnYe3bTdijDBybLjEBQ7Xyk+p2PEaJoNw5WrrYtF6c7sJasT5SUI4Jv+9CsbvpvojUeBoO6YkX4hzl",
+	"EobaPYT1WfV7gNWzxX1E8ZM1voDWyuUL6vq1xBpsGOY03LdeRU/ougf6+ADtN9+Y/OR7jIJDBDxvImy9",
+	"kvZPoXGoyEDj7P+n8Z0oWIzgRyydFx6HcfBt0bBTu4ff5fu+/y8AAP//+YvSlcERAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

@@ -9,25 +9,27 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/metafates/avito-task/log"
 	"github.com/metafates/avito-task/server/api"
+	"github.com/metafates/avito-task/swagger"
 	"golang.org/x/sync/errgroup"
 )
 
 // Run the server with the given addr and options.
 // It will gracefully shutdown the server when the context is done.
 func Run(ctx context.Context, addr string, options Options) error {
-	swagger, err := api.GetSwagger()
+	swaggerSpec, err := api.GetSwagger()
 	if err != nil {
 		return err
 	}
-	swagger.Servers = nil
+	swaggerSpec.Servers = nil
 
 	e := echo.New()
-	e.Use(middleware.OapiRequestValidatorWithOptions(swagger, &middleware.Options{
+	apiGroup := e.Group("")
+	apiGroup.Use(middleware.OapiRequestValidatorWithOptions(swaggerSpec, &middleware.Options{
 		ErrorHandler: func(c echo.Context, err *echo.HTTPError) error {
-			log.Logger.Err(err).Send()
-
 			var msg string
 			if err.Code == http.StatusInternalServerError {
+				log.Logger.Err(err).Send()
+
 				// do not expose internal error message
 				// as it can contain sensible data
 				msg = "internal server error"
@@ -48,7 +50,14 @@ func Run(ctx context.Context, addr string, options Options) error {
 		},
 	)
 
-	api.RegisterHandlers(e, apiHandler)
+	api.RegisterHandlers(apiGroup, apiHandler)
+
+	swaggerHandler, err := swagger.NewHandler(swaggerSpec)
+	if err != nil {
+		return err
+	}
+
+	e.GET("/docs/*", echo.WrapHandler(http.StripPrefix("/docs", swaggerHandler)))
 
 	g, gCtx := errgroup.WithContext(ctx)
 

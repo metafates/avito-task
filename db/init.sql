@@ -1,7 +1,7 @@
 create type audit_action as enum ('ASSIGN', 'DEPRIVE');
 
 create table users (
-    id varchar(32) primary key
+    id integer primary key
 );
 
 create table segments (
@@ -10,13 +10,13 @@ create table segments (
 );
 
 create table assigned_segments (
-    user_id varchar(32) references users(id) on delete cascade,
+    user_id integer references users(id) on delete cascade,
     segment_slug varchar(128) references segments(slug) on delete cascade,
     expires_at timestamptz
 );
 
 create table assignments_audit (
-    user_id varchar(32) references users(id) on delete cascade,
+    user_id integer references users(id) on delete cascade,
     action audit_action not null,
     segment_slug varchar(128) not null,
     stamp timestamptz not null,

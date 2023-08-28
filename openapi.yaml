@@ -1,7 +1,13 @@
 openapi: 3.1.0
 info:
-  title: Avito Test
+  title: AvitoTech Backend Assignment
   version: 0.1.0
+  summary: Assignment for AvitoTech 2023 backend internship
+  contact:
+    email: vvz.dev@gmail.com
+externalDocs:
+  description: README
+  url: https://github.com/metafates/avito-task/blob/main/README.md
 paths:
   /audit:
     get:
@@ -19,6 +25,12 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/Date'
+        - in: query
+          name: user
+          description: Show audit for specifc user with the given id
+          required: false
+          schema:
+            $ref: '#/components/schemas/UserID'
       responses:
         '200':
           description: Audit of changes
@@ -28,12 +40,7 @@ paths:
                 $ref: '#/components/schemas/CSV'
   /segments/{slug}:
     parameters:
-      - in: path
-        name: slug
-        description: Segment slug
-        required: true
-        schema:
-          $ref: '#/components/schemas/Slug'
+      - $ref: '#/components/parameters/Slug'
     post:
       summary: Create a new segment
       requestBody:
@@ -60,12 +67,7 @@ paths:
                 $ref: '#/components/schemas/Error'
   /users/{id}:
     parameters:
-      - in: path
-        name: id
-        description: User ID to work with
-        required: true
-        schema:
-          $ref: '#/components/schemas/UserID'
+      - $ref: '#/components/parameters/User'
     post:
       summary: Create a new user
       responses:
@@ -79,12 +81,7 @@ paths:
                 $ref: '#/components/schemas/Error'
   /users/{id}/segments:
     parameters:
-      - in: path
-        name: id
-        description: User ID to work with
-        required: true
-        schema:
-          $ref: '#/components/schemas/UserID'
+      - $ref: '#/components/parameters/User'
     get:
       summary: Get active segments assigned to a user
       responses:
@@ -104,18 +101,8 @@ paths:
                 $ref: '#/components/schemas/Error'
   /users/{id}/segments/{slug}:
     parameters:
-      - in: path
-        name: id
-        description: User ID to work with
-        required: true
-        schema:
-          $ref: '#/components/schemas/UserID'
-      - in: path
-        name: slug
-        description: Segment slug
-        required: true
-        schema:
-          $ref: '#/components/schemas/Slug'
+      - $ref: '#/components/parameters/User'
+      - $ref: '#/components/parameters/Slug'
     post:
       summary: Assign segment to a user
       requestBody:
@@ -169,11 +156,12 @@ components:
       minimum: 0
       maximum: 1
     UserID:
-      type: string
-      # type: integer
-      # format: int32
+      # type: string
+      type: integer
+      format: int32
     Slug:
       type: string
+      minLength: 1
     UserSegment:
       type: object
       required:
@@ -181,7 +169,7 @@ components:
       properties:
         slug:
           $ref: '#/components/schemas/Slug'
-        expires:
+        expiresAt:
           $ref: '#/components/schemas/Timestamp'
     Error:
       type: object
@@ -199,7 +187,7 @@ components:
           schema:
             type: object
             properties:
-              expires:
+              expiresAt:
                 $ref: '#/components/schemas/Timestamp'
     SegmentCreation:
       description: Create a new segment
@@ -211,3 +199,18 @@ components:
             properties:
               outreach:
                 $ref: '#/components/schemas/Outreach'
+  parameters:
+    Slug:
+      in: path
+      name: slug
+      description: Segment slug
+      required: true
+      schema:
+        $ref: '#/components/schemas/Slug'
+    User:
+      in: path
+      name: id
+      description: User ID to work with
+      required: true
+      schema:
+        $ref: '#/components/schemas/UserID'

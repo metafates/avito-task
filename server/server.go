@@ -17,16 +17,20 @@ type Server struct {
 
 // GetAudit implements api.StrictServerInterface.
 func (s *Server) GetAudit(ctx context.Context, request api.GetAuditRequestObject) (api.GetAuditResponseObject, error) {
-	var from, to *time.Time
-	if request.Params.From != nil {
-		from = &request.Params.From.Time
+	var filter auditFilter
+	if from := request.Params.From; from != nil {
+		filter.From = &from.Time
 	}
 
-	if request.Params.To != nil {
-		to = &request.Params.To.Time
+	if to := request.Params.To; to != nil {
+		filter.To = &to.Time
 	}
 
-	audit, err := s.audit(ctx, from, to)
+	if user := request.Params.User; user != nil {
+		filter.User = user
+	}
+
+	audit, err := s.audit(ctx, filter)
 	if err != nil {
 		log.Logger.Err(err).Send()
 		return nil, err
@@ -174,7 +178,7 @@ func (a *Server) PostSegmentsSlug(ctx context.Context, request api.PostSegmentsS
 
 // PostUsersIdSegmentsSlug implements StrictServerInterface.
 func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUsersIdSegmentsSlugRequestObject) (api.PostUsersIdSegmentsSlugResponseObject, error) {
-	if expires := request.Body.Expires; expires != nil && expires.Before(time.Now()) {
+	if expires := request.Body.ExpiresAt; expires != nil && expires.Before(time.Now()) {
 		return api.PostUsersIdSegmentsSlug400JSONResponse{
 			Error: "segment is already expired",
 		}, nil
@@ -215,7 +219,7 @@ func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUs
 
 	var segmentAssignment api.SegmentAssignment
 	if body := request.Body; body != nil {
-		segmentAssignment.Expires = body.Expires
+		segmentAssignment.ExpiresAt = body.ExpiresAt
 	}
 
 	if err = a.assignSegment(

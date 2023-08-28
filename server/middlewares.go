@@ -9,12 +9,11 @@ import (
 )
 
 // middlewareLogger Logs all requests
-func middlewareLogger(f runtime.StrictEchoHandlerFunc, operationID string) runtime.StrictEchoHandlerFunc {
+func middlewareLogger(f runtime.StrictEchoHandlerFunc, _ string) runtime.StrictEchoHandlerFunc {
 	return func(ctx echo.Context, request any) (response any, err error) {
 		event := log.
 			Logger.
 			Info().
-			Str("operation", operationID).
 			Str("path", ctx.Path()).
 			Str("method", ctx.Request().Method)
 
