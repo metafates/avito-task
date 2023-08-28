@@ -12,10 +12,9 @@
   - [Configuration](#configuration)
   - [What's implemented](#whats-implemented)
     - [Primary task](#primary-task)
-    - [Extra tasks](#extra-tasks)
-      - [1 - CSV Audit](#1-csv-audit)
-      - [2 - Segments expiration](#2-segments-expiration)
-      - [3 - Automatically assign % users to the segment](#3-automatically-assign-users-to-the-segment)
+    - [Extra 1 - CSV Audit](#extra-1-csv-audit)
+    - [Extra 2 - Segments expiration](#extra-2-segments-expiration)
+    - [Extra 3 - Automatically assign % users to the segment](#extra-3-automatically-assign-users-to-the-segment)
 <!--toc:end-->
 
 Assignment for AvitoTech 2023 backend internship
@@ -159,9 +158,7 @@ cp template.env .env
 - [x] Method for depriving a segment from a user
 - [x] Method for getting active segments of a user
 
-### Extra tasks
-
-#### 1 - CSV Audit
+### Extra 1 - CSV Audit
 
 Request:
 
@@ -182,20 +179,20 @@ user_id,segment_slug,action,stamp
 It will track both types of changes
 
 - Manual deprivation *&* assignment. Done through api endpoints directly.
-- Expiration and auto-assignment (from the [third task](#3-automatically-assign-users-to-the-segment))
+- Expiration and auto-assignment (from the [third task](#extra-3-automatically-assign-users-to-the-segment))
 
 Implmented with postgres trigger that watches for `INSERT` and `DELETE` operations
 on the given table and logs changes to the special audit table.
 That is, the whole process is done automatically.
 
-#### 2 - Segments expiration
+### Extra 2 - Segments expiration
 
 [![asciicast](https://asciinema.org/a/ZoMo8mrVnfj3luLtk95EHt5VI.svg)](https://asciinema.org/a/ZoMo8mrVnfj3luLtk95EHt5VI)
 
 The rows itself are not deleted from the database when they expire.
 Instead, they are just filtered out on `SELECT` query.
 
-#### 3 - Automatically assign % users to the segment
+### Extra 3 - Automatically assign % users to the segment
 
 ```bash
 curl --request POST \
