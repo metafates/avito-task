@@ -19,7 +19,8 @@ create table assignments_audit (
     user_id varchar(32) references users(id) on delete cascade,
     action audit_action not null,
     segment_slug varchar(128) not null,
-    stamp timestamptz not null
+    stamp timestamptz not null,
+    expires_at timestamptz
 );
 
 create function tg_assignments_audit() returns trigger
@@ -28,8 +29,8 @@ as
 $$
 begin
     if (TG_OP = 'INSERT') then
-        insert into assignments_audit (user_id, segment_slug, action, stamp)
-        values (NEW.user_id, NEW.segment_slug, 'ASSIGN'::audit_action, now());
+        insert into assignments_audit (user_id, segment_slug, action, stamp, expires_at)
+        values (NEW.user_id, NEW.segment_slug, 'ASSIGN'::audit_action, now(), NEW.expires_at);
         return new;
     elsif (TG_OP = 'DELETE') then
         insert into assignments_audit (user_id, segment_slug, action, stamp)

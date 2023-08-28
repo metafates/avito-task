@@ -174,6 +174,12 @@ func (a *Server) PostSegmentsSlug(ctx context.Context, request api.PostSegmentsS
 
 // PostUsersIdSegmentsSlug implements StrictServerInterface.
 func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUsersIdSegmentsSlugRequestObject) (api.PostUsersIdSegmentsSlugResponseObject, error) {
+	if expires := request.Body.Expires; expires != nil && expires.Before(time.Now()) {
+		return api.PostUsersIdSegmentsSlug400JSONResponse{
+			Error: "segment is already expired",
+		}, nil
+	}
+
 	exists, err := a.userExists(ctx, request.Id)
 	if err != nil {
 		return nil, err

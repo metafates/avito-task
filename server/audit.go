@@ -1,11 +1,10 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
-	"fmt"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -30,29 +29,33 @@ type auditEntry struct {
 type audit []auditEntry
 
 func (a audit) CSV() (string, error) {
-	var sb strings.Builder
-	writer := csv.NewWriter(&sb)
+	buf := new(bytes.Buffer)
+	writer := csv.NewWriter(buf)
 
-	records := make([][]string, len(a)+1)
-	records = append(records, []string{"user_id", "segment_slug", "action", "stamp"})
+	columns := []string{"user_id", "segment_slug", "action", "stamp"}
+	if err := writer.Write(columns); err != nil {
+		return "", err
+	}
 
 	for _, entry := range a {
-		records = append(records, []string{
+		record := []string{
 			entry.UserID,
 			entry.SegmentSlug,
 			string(entry.Action),
 			entry.Stamp.Format(time.RFC3339), // as defined by openapi format date-time which uses RFC3339
-		})
-	}
+		}
 
-	for _, record := range records {
-		fmt.Printf("record: %v\n", record)
 		if err := writer.Write(record); err != nil {
 			return "", err
 		}
 	}
 
-	return sb.String(), nil
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
 
 // TODO: implement, use time range
@@ -60,8 +63,7 @@ func (s *Server) audit(ctx context.Context, from *time.Time, to *time.Time) (aud
 	query := s.
 		psql().
 		Select("user_id", "segment_slug", "action", "stamp", "expires_at").
-		From(db.TableAssignmentsAudit).
-		JoinClause(fmt.Sprintf("natural join %s", db.TableAssignedSegments))
+		From(db.TableAssignmentsAudit)
 
 	if from != nil && to != nil {
 		query = query.Where(squirrel.And{
@@ -71,7 +73,7 @@ func (s *Server) audit(ctx context.Context, from *time.Time, to *time.Time) (aud
 	} else if from != nil {
 		query = query.Where(squirrel.GtOrEq{"stamp": from})
 	} else if to != nil {
-		query = query.Where(squirrel.LtOrEq{"stamp": from})
+		query = query.Where(squirrel.LtOrEq{"stamp": to})
 	}
 
 	sql, args, err := query.ToSql()
@@ -130,7 +132,7 @@ func (s *Server) audit(ctx context.Context, from *time.Time, to *time.Time) (aud
 		})
 	}
 
-	// sort by time
+	// sort by time.
 	slices.SortFunc(audit, func(a, b auditEntry) int {
 		if a.Stamp.After(b.Stamp) {
 			return 1

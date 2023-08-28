@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
@@ -31,7 +32,7 @@ func Run(ctx context.Context, addr string, options Options) error {
 				// as it can contain sensible data
 				msg = "internal server error"
 			} else {
-				msg = err.Error()
+				msg = fmt.Sprint(err.Message)
 			}
 
 			return c.JSON(err.Code, api.Error{
