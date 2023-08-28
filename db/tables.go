@@ -4,5 +4,5 @@ const (
 	TableUsers            = "users"
 	TableSegments         = "segments"
 	TableAssignedSegments = "assigned_segments"
-	TableAudit            = "audit"
+	TableAssignmentsAudit = "assignments_audit"
 )

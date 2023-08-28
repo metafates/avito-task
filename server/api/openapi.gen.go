@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -17,9 +18,16 @@ import (
 	"time"
 
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
+	openapi_types "github.com/deepmap/oapi-codegen/pkg/types"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
 )
+
+// CSV defines model for CSV.
+type CSV = string
+
+// Date defines model for Date.
+type Date = openapi_types.Date
 
 // Error defines model for Error.
 type Error struct {
@@ -54,6 +62,15 @@ type SegmentCreation struct {
 	Outreach *Outreach `json:"outreach,omitempty"`
 }
 
+// GetAuditParams defines parameters for GetAudit.
+type GetAuditParams struct {
+	// From Start date of the audit window
+	From *Date `form:"from,omitempty" json:"from,omitempty"`
+
+	// To End date of the audit window
+	To *Date `form:"to,omitempty" json:"to,omitempty"`
+}
+
 // PostSegmentsSlugJSONBody defines parameters for PostSegmentsSlug.
 type PostSegmentsSlugJSONBody struct {
 	Outreach *Outreach `json:"outreach,omitempty"`
@@ -72,6 +89,9 @@ type PostUsersIdSegmentsSlugJSONRequestBody PostUsersIdSegmentsSlugJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Get audit of changes
+	// (GET /audit)
+	GetAudit(ctx echo.Context, params GetAuditParams) error
 	// Delete a segment
 	// (DELETE /segments/{slug})
 	DeleteSegmentsSlug(ctx echo.Context, slug Slug) error
@@ -95,6 +115,31 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// GetAudit converts echo context to params.
+func (w *ServerInterfaceWrapper) GetAudit(ctx echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuditParams
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "from", ctx.QueryParams(), &params.From)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter from: %s", err))
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "to", ctx.QueryParams(), &params.To)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter to: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetAudit(ctx, params)
+	return err
 }
 
 // DeleteSegmentsSlug converts echo context to params.
@@ -237,6 +282,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.GET(baseURL+"/audit", wrapper.GetAudit)
 	router.DELETE(baseURL+"/segments/:slug", wrapper.DeleteSegmentsSlug)
 	router.POST(baseURL+"/segments/:slug", wrapper.PostSegmentsSlug)
 	router.POST(baseURL+"/users/:id", wrapper.PostUsersId)
@@ -244,6 +290,33 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.DELETE(baseURL+"/users/:id/segments/:slug", wrapper.DeleteUsersIdSegmentsSlug)
 	router.POST(baseURL+"/users/:id/segments/:slug", wrapper.PostUsersIdSegmentsSlug)
 
+}
+
+type GetAuditRequestObject struct {
+	Params GetAuditParams
+}
+
+type GetAuditResponseObject interface {
+	VisitGetAuditResponse(w http.ResponseWriter) error
+}
+
+type GetAudit200TextcsvResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response GetAudit200TextcsvResponse) VisitGetAuditResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/csv")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
 }
 
 type DeleteSegmentsSlugRequestObject struct {
@@ -412,6 +485,9 @@ func (response PostUsersIdSegmentsSlug409JSONResponse) VisitPostUsersIdSegmentsS
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Get audit of changes
+	// (GET /audit)
+	GetAudit(ctx context.Context, request GetAuditRequestObject) (GetAuditResponseObject, error)
 	// Delete a segment
 	// (DELETE /segments/{slug})
 	DeleteSegmentsSlug(ctx context.Context, request DeleteSegmentsSlugRequestObject) (DeleteSegmentsSlugResponseObject, error)
@@ -442,6 +518,31 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// GetAudit operation middleware
+func (sh *strictHandler) GetAudit(ctx echo.Context, params GetAuditParams) error {
+	var request GetAuditRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAudit(ctx.Request().Context(), request.(GetAuditRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAudit")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetAuditResponseObject); ok {
+		return validResponse.VisitGetAuditResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // DeleteSegmentsSlug operation middleware
@@ -611,19 +712,22 @@ func (sh *strictHandler) PostUsersIdSegmentsSlug(ctx echo.Context, id UserID, sl
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"//8s+ppPsRAAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

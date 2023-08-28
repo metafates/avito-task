@@ -3,6 +3,29 @@ info:
   title: Avito Test
   version: 0.1.0
 paths:
+  /audit:
+    get:
+      summary: Get audit of changes
+      parameters:
+        - in: query
+          name: from
+          description: Start date of the audit window
+          required: false
+          schema:
+            $ref: '#/components/schemas/Date'
+        - in: query
+          name: to
+          description: End date of the audit window
+          required: false
+          schema:
+            $ref: '#/components/schemas/Date'
+      responses:
+        '200':
+          description: Audit of changes
+          content:
+            text/csv:
+              schema:
+                $ref: '#/components/schemas/CSV'
   /segments/{slug}:
     parameters:
       - in: path
@@ -125,12 +148,20 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
+    CSV:
+      type: string
+      format: csv
+    Date:
+      type: string
+      format: date
     Timestamp:
       type: string
       format: date-time
     Outreach:
       type: number
       format: float
+      minimum: 0
+      maximum: 1
     UserID:
       type: string
       # type: integer

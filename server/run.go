@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/labstack/echo/v4"
@@ -23,8 +24,18 @@ func Run(ctx context.Context, addr string, options Options) error {
 	e.Use(middleware.OapiRequestValidatorWithOptions(swagger, &middleware.Options{
 		ErrorHandler: func(c echo.Context, err *echo.HTTPError) error {
 			log.Logger.Err(err).Send()
+
+			var msg string
+			if err.Code == http.StatusInternalServerError {
+				// do not expose internal error message
+				// as it can contain sensible data
+				msg = "internal server error"
+			} else {
+				msg = err.Error()
+			}
+
 			return c.JSON(err.Code, api.Error{
-				Error: "internal server error",
+				Error: msg,
 			})
 		},
 	}))

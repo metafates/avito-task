@@ -2,7 +2,10 @@ package server
 
 import (
 	"context"
+	"strings"
+	"time"
 
+	"github.com/metafates/avito-task/log"
 	"github.com/metafates/avito-task/server/api"
 )
 
@@ -10,6 +13,35 @@ var _ api.StrictServerInterface = (*Server)(nil)
 
 type Server struct {
 	options Options
+}
+
+// GetAudit implements api.StrictServerInterface.
+func (s *Server) GetAudit(ctx context.Context, request api.GetAuditRequestObject) (api.GetAuditResponseObject, error) {
+	var from, to *time.Time
+	if request.Params.From != nil {
+		from = &request.Params.From.Time
+	}
+
+	if request.Params.To != nil {
+		to = &request.Params.To.Time
+	}
+
+	audit, err := s.audit(ctx, from, to)
+	if err != nil {
+		log.Logger.Err(err).Send()
+		return nil, err
+	}
+
+	csv, err := audit.CSV()
+	if err != nil {
+		log.Logger.Err(err).Send()
+		return nil, err
+	}
+
+	return api.GetAudit200TextcsvResponse{
+		Body:          strings.NewReader(csv),
+		ContentLength: int64(len(csv)),
+	}, nil
 }
 
 // PostUsersId implements StrictServerInterface.
