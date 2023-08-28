@@ -1,21 +1,26 @@
-create type audit_action as enum ('ASSIGN', 'DEPRIVE');
+do $$
+    begin
+    if not exists (select 1 from pg_type where typname = 'audit_action') then
+        create type audit_action as enum ('ASSIGN', 'DEPRIVE');
+    end if;
+end$$;
 
-create table users (
+create table if not exists users (
     id integer primary key
 );
 
-create table segments (
+create table if not exists segments (
     slug varchar(128) primary key,
     outreach real
 );
 
-create table assigned_segments (
+create table if not exists assigned_segments (
     user_id integer references users(id) on delete cascade,
     segment_slug varchar(128) references segments(slug) on delete cascade,
     expires_at timestamptz
 );
 
-create table assignments_audit (
+create table if not exists assignments_audit (
     user_id integer references users(id) on delete cascade,
     action audit_action not null,
     segment_slug varchar(128) not null,
@@ -23,7 +28,7 @@ create table assignments_audit (
     expires_at timestamptz
 );
 
-create function tg_assignments_audit() returns trigger
+create or replace function tg_assignments_audit() returns trigger
     language plpgsql
 as
 $$
@@ -40,6 +45,8 @@ begin
     return null;
 end;
 $$;
+
+drop trigger if exists assignments_audit on assigned_segments;
 
 create trigger assignments_audit
 after insert or delete on assigned_segments

@@ -17,13 +17,17 @@ Assignment for AvitoTech 2023 backend internship
 ```bash
 # If you use mage
 # https://magefile.org/
-mage docker
+mage docker:all
 
 # Otherwise...
 docker compose up
 ```
 
-Open [localhost:1234/docs/](http://localhost:1234/docs/) for OpenAPI Web-UI.
+*This will spin up...*
+
+- The server itself at port `1234` with OpenAPI Web-UI at path `/docs/`
+- [PGWeb](https://github.com/sosedoff/pgweb) at port `8081` - Web-UI client for postgres
+- PostgreSQL at port `5432` - Database
 
 ## Structure
 
@@ -71,10 +75,21 @@ From the [Mage](https://magefile.org/) website...
 To run the server with auxiliary docker containers run...
 
 ```bash
-mage docker
+mage docker:all
 
-# Or, if you don't want to use mage
+# or using docker compose
 docker compose up
+```
+
+You can also run supplimentary containers only, without the server itself.
+This can be useful you wan't to quickly test some new changes without restarting
+other containers.
+
+```bash
+mage docker:dev
+
+# then, in some other window you can run
+mage run
 ```
 
 See [Targets](#targets) for all available targets
@@ -87,9 +102,15 @@ To show the available targets run...
 mage -l
 ```
 
-- `docker` - Rebuild Dockerfile and start docker compose
-- `generate` - Run code generation
-- `test` - Spin up docker containers and run tests
+```
+Targets:
+  docker:all    Rebuild Dockerfile and start docker compose
+  docker:dev    Start docker compose only with auxiliary containers (database, web ui) without the server itself
+  generate      Run code generation
+  run           Start the server
+  test          Spin up docker containers and run tests
+```
+
 
 ## Configuration
 

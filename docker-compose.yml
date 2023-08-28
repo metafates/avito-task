@@ -1,6 +1,9 @@
 version: '3.1'
+include:
+  - docker-compose-aux.yml
 services:
   server:
+    restart: always
     ports:
       - 1234:1234
     depends_on:
@@ -11,27 +14,3 @@ services:
       SERVER_DB_POSTGRES: postgresql://postgres:postgres@db/db
     build:
       context: .
-  db:
-    image: postgres
-    restart: always
-    ports:
-      - 5432:5432
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: db
-      PGUSER: postgres
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready", "-d", "db_prod"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
-  adminer:
-    image: adminer
-    restart: always
-    ports:
-      - 8080:8080
-    depends_on:
-      db:
-        condition: service_healthy

@@ -17,116 +17,93 @@ import (
 // If not set, running mage will list available targets
 // var Default = Build
 
-func run(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	log.Logger.Info().Str("name", name).Strs("args", args).Msg("running command")
-	return cmd.Run()
-}
-
-func goInstall(url string) error {
-	return run("go", "install", url)
-}
-
 func inPath(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
 }
 
+func run(name string, args ...string) {
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	log.Logger.Info().Str("name", name).Strs("args", args).Msg("running command")
+	if err := cmd.Run(); err != nil {
+		log.Logger.Fatal().Err(err).Str("command", name).Send()
+	}
+}
+
+func cmd(name string, args ...string) func(...string) {
+	return func(extraArgs ...string) {
+		run(name, append(args, extraArgs...)...)
+	}
+}
+
 // Spin up docker containers and run tests
-func Test() error {
-	err := run("docker", "compose", "up", "-d", "--no-deps", "--build", "server")
-	if err != nil {
-		return err
-	}
+func Test() {
+	compose := cmd("docker", "compose")
 
-	err = run("docker", "compose", "down")
-	if err != nil {
-		return err
-	}
+	compose("down")
 
-	err = run("docker", "compose", "up", "-d")
-	if err != nil {
-		return err
-	}
+	compose("-f", "docker-compose-aux.yml", "up", "-d")
 
-	waitDuration := 10 * time.Second
+	waitDuration := 5 * time.Second
 	log.Logger.Info().Dur("wait", waitDuration).Msg("waiting for all containers to start")
 	time.Sleep(10 * time.Second)
 
-	err = run("go", "test", "./...")
-	if err != nil {
-		return err
-	}
-
-	return run("docker", "compose", "down")
+	run("go", "test", "./...")
+	compose("down")
 }
 
+// Start the server
+func Run() {
+	run("go", "run", ".")
+}
+
+type Docker mg.Namespace
+
 // Rebuild Dockerfile and start docker compose
-func Docker() error {
-	err := run("docker", "compose", "up", "-d", "--no-deps", "--build", "server")
-	if err != nil {
-		return err
-	}
+func (Docker) All() {
+	compose := cmd("docker", "compose")
 
-	err = run("docker", "compose", "down")
-	if err != nil {
-		return err
-	}
+	compose("up", "-d", "--no-deps", "--build", "server")
+	compose("down")
+	compose("up")
+}
 
-	err = run("docker", "compose", "up")
-	if err != nil {
-		return err
-	}
+// Start docker compose only with auxiliary containers (database, web ui) without the server itself
+func (Docker) Dev() {
+	compose := cmd("docker", "compose")
 
-	return nil
+	compose("down")
+	compose("-f", "docker-compose-aux.yml", "up")
 }
 
 // Run code generation
-func Generate() error {
+func Generate() {
 	mg.Deps(installGenerators)
 
 	log.Logger.Info().Msg("running code generation")
 
-	err := run("go", "generate", "./...")
-	if err != nil {
-		return err
-	}
+	run("go", "generate", "./...")
 
-	err = run("oapi-codegen", "--config", "oapi.cfg.yaml", "openapi.yaml")
-	if err != nil {
-		return err
-	}
+	run("oapi-codegen", "--config", "oapi.cfg.yaml", "openapi.yaml")
 
 	if _, err := os.Stat("Dockerfile"); errors.Is(err, os.ErrNotExist) {
-		err = run("goctl", "docker", "-go", "main.go", "--tz", "Europe/Moscow")
-		if err != nil {
-			return err
-		}
+		run("goctl", "docker", "-go", "main.go", "--tz", "Europe/Moscow")
 	}
-
-	return nil
 }
 
 // Manage your deps, or running package managers.
-func installGenerators() error {
+func installGenerators() {
 	log.Logger.Info().Msg("installing dependencies")
 
+	install := cmd("go", "install")
 	if !inPath("oapi-codegen") {
-		err := goInstall("github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest")
-		if err != nil {
-			return err
-		}
+		install("github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest")
 	}
 
 	if !inPath("goctl") {
-		err := goInstall("github.com/zeromicro/go-zero/tools/goctl@latest")
-		if err != nil {
-			return err
-		}
+		install("github.com/zeromicro/go-zero/tools/goctl@latest")
 	}
-
-	return nil
 }

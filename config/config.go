@@ -2,8 +2,6 @@ package config
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -21,14 +19,11 @@ type DBConfig struct {
 	PostgresURI string `koanf:"postgres"`
 }
 
-func Load(path string) (config Config, err error) {
-	err = godotenv.Load(filepath.Join(path, ".env"))
+func LoadEnvs(filenames ...string) error {
+	return godotenv.Load(filenames...)
+}
 
-	// ignore if file does not exist
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return
-	}
-
+func Load() (config Config, err error) {
 	k := koanf.New(".")
 
 	// Default values

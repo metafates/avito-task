@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"os/signal"
 
+	"github.com/joho/godotenv"
 	"github.com/metafates/avito-task/config"
 	"github.com/metafates/avito-task/db"
 	"github.com/metafates/avito-task/log"
@@ -17,7 +19,15 @@ func main() {
 	defer stop()
 
 	log.Logger.Info().Msg("loading config")
-	cfg, err := config.Load(".")
+	if err := godotenv.Load(".env"); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Logger.Warn().Msg(".env file is missing")
+		} else {
+			log.Logger.Fatal().Err(err).Msg("config")
+		}
+	}
+
+	cfg, err := config.Load()
 	if err != nil {
 		log.Logger.Fatal().Err(err).Msg("config")
 	}
