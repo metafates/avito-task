@@ -1,3 +1,5 @@
+<img src="https://avatars.githubusercontent.com/u/13049122?s=200&v=4">
+
 # AvitoTech Backend Assignment
 
 <!--toc:start-->
