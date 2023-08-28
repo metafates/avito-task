@@ -19,7 +19,7 @@ Assignment for AvitoTech 2023 backend internship
 ```bash
 # If you use mage
 # https://magefile.org/
-mage docker:all
+mage docker:run
 
 # Otherwise...
 docker compose up
@@ -42,7 +42,6 @@ with RPC inspired interface implemented in [server.go](./server/server.go).
 
 The main points of this RPCish interface is to automate some parsing, abstract user code
 from server specific code, and also to force user code to comply with the schema.
-
 
 ## Docs
 
@@ -77,7 +76,7 @@ From the [Mage](https://magefile.org/) website...
 To run the server with auxiliary docker containers run...
 
 ```bash
-mage docker:all
+mage docker:run
 
 # or using docker compose
 docker compose up
@@ -106,13 +105,13 @@ mage -l
 
 ```
 Targets:
-  docker:all    Rebuild Dockerfile and start docker compose
-  docker:dev    Start docker compose only with auxiliary containers (database, web ui) without the server itself
-  generate      Run code generation
-  run           Start the server
-  test          Spin up docker containers and run tests
+  docker:dev     Start docker compose only with auxiliary containers (database, web ui) without the server
+  docker:run     Rebuild Dockerfile and start docker compose with the server itself
+  docker:test    Spin up docker containers and run tests
+  generate       Run code generation
+  run            Start the server
+  test           Run tests
 ```
-
 
 ## Configuration
 

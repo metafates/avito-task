@@ -39,8 +39,20 @@ func cmd(name string, args ...string) func(...string) {
 	}
 }
 
-// Spin up docker containers and run tests
+// Start the server
+func Run() {
+	run("go", "run", ".")
+}
+
+// Run tests
 func Test() {
+	run("go", "test", "./...")
+}
+
+type Docker mg.Namespace
+
+// Spin up docker containers and run tests
+func (Docker) Test() {
 	compose := cmd("docker", "compose")
 
 	compose("down")
@@ -49,21 +61,14 @@ func Test() {
 
 	waitDuration := 5 * time.Second
 	log.Logger.Info().Dur("wait", waitDuration).Msg("waiting for all containers to start")
-	time.Sleep(10 * time.Second)
+	time.Sleep(waitDuration)
 
 	run("go", "test", "./...")
 	compose("down")
 }
 
-// Start the server
-func Run() {
-	run("go", "run", ".")
-}
-
-type Docker mg.Namespace
-
-// Rebuild Dockerfile and start docker compose
-func (Docker) All() {
+// Rebuild Dockerfile and start docker compose with the server itself
+func (Docker) Run() {
 	compose := cmd("docker", "compose")
 
 	compose("up", "-d", "--no-deps", "--build", "server")
@@ -71,7 +76,7 @@ func (Docker) All() {
 	compose("up")
 }
 
-// Start docker compose only with auxiliary containers (database, web ui) without the server itself
+// Start docker compose only with auxiliary containers (database, web ui) without the server
 func (Docker) Dev() {
 	compose := cmd("docker", "compose")
 
