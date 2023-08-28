@@ -1,4 +1,4 @@
-<img src="https://avatars.githubusercontent.com/u/13049122?s=200&v=4">
+![AvitoTech Logo](https://avatars.githubusercontent.com/u/13049122?s=200&v=4)
 
 # AvitoTech Backend Assignment
 
@@ -10,6 +10,12 @@
   - [Build / Run](#build-run)
     - [Targets](#targets)
   - [Configuration](#configuration)
+  - [What's implemented](#whats-implemented)
+    - [Primary task](#primary-task)
+    - [Extra tasks](#extra-tasks)
+      - [1 - CSV Audit](#1-csv-audit)
+      - [2 - Segments expiration](#2-segments-expiration)
+      - [3 - Automatically assign % users to the segment](#3-automatically-assign-users-to-the-segment)
 <!--toc:end-->
 
 Assignment for AvitoTech 2023 backend internship
@@ -141,5 +147,68 @@ cp template.env .env
 > [!NOTE]  
 > [`docker-compose.yml`](./docker-compose.yml) already includes required
 > environment variables, so that you don't need to configure anything.
+
+## What's implemented
+
+### Primary task
+
+- [x] Method for creating a user
+- [x] Method for creating a segment
+- [x] Method for deleting a segment
+- [x] Method for assigning a segment to a user
+- [x] Method for depriving a segment from a user
+- [x] Method for getting active segments of a user
+
+### Extra tasks
+
+#### 1 - CSV Audit
+
+Request:
+
+```bash
+curl --request GET \
+  --url http://0.0.0.0:1234/audit \
+  --header 'Accept: text/csv'
+```
+
+Response:
+
+```csv
+user_id,segment_slug,action,stamp
+1234,AVITO_TEST,ASSIGN,2023-08-28T22:29:13+03:00
+1234,AVITO_TEST,DEPRIVE,2023-08-28T22:29:16+03:00
+```
+
+It will track both types of changes
+
+- Manual deprivation *&* assignment. Done through api endpoints directly.
+- Expiration and auto-assignment (from the [third task](#3-automatically-assign-users-to-the-segment))
+
+Implmented with postgres trigger that watches for `INSERT` and `DELETE` operations
+on the given table and logs changes to the special audit table.
+That is, the whole process is done automatically.
+
+#### 2 - Segments expiration
+
+[![asciicast](https://asciinema.org/a/ZoMo8mrVnfj3luLtk95EHt5VI.svg)](https://asciinema.org/a/ZoMo8mrVnfj3luLtk95EHt5VI)
+
+The rows itself are not deleted from the database when they expire.
+Instead, they are just filtered out on `SELECT` query.
+
+#### 3 - Automatically assign % users to the segment
+
+```bash
+curl --request POST \
+  --url http://0.0.0.0:1234/segments/AVITO_TEST \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "outreach": 0.42
+}'
+```
+
+That would assign `AVITO_TEST` segment to the 42% (`"outreach": 0.42`)
+of the existing and new users. When the segment is deleted, it would be deprived
+from all users automatically.
 
 [^1]: The OpenAPI Specification is a specification language for HTTP APIs that provides a standardized means to define your API to others. https://www.openapis.org/
