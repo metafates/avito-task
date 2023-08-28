@@ -149,6 +149,8 @@ cp template.env .env
 
 ## What's implemented
 
+Everything. Primary task and all extra tasks.
+
 ### Primary task
 
 - [x] Method for creating a user
