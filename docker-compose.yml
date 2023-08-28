@@ -27,14 +27,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
-  swagger-ui:
-    image: swaggerapi/swagger-ui
-    ports:
-      - "8082:8080"
-    volumes:
-      - ./openapi.yaml:/swagger.yaml
-    environment:
-      SWAGGER_JSON: /swagger.yaml
   adminer:
     image: adminer
     restart: always
