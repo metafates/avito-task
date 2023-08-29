@@ -2,16 +2,16 @@ package server
 
 import (
 	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// pg Returns a postgres connection
-func (a *Server) pg() *pgx.Conn {
-	return a.options.Connections.Postgres
+// pg Returns a postgres connection pool
+func (s *Server) pgpool() *pgxpool.Pool {
+	return s.options.Pools.Postgres
 }
 
 // psql Returns a new SQL statement builder
-func (a *Server) psql() squirrel.StatementBuilderType {
+func (s *Server) psql() squirrel.StatementBuilderType {
 	return squirrel.
 		StatementBuilder.
 		PlaceholderFormat(squirrel.Dollar)

@@ -33,14 +33,14 @@ func main() {
 	}
 
 	log.Logger.Info().Msg("connecting to databases")
-	dbConnections, err := db.Connect(ctx, cfg.DB)
+	pools, err := db.Connect(ctx, cfg.DB)
 	if err != nil {
 		log.Logger.Fatal().Err(err).Msg("database")
 	}
 
 	log.Logger.Info().Msg("starting the server")
 	err = server.Run(ctx, net.JoinHostPort("0.0.0.0", cfg.Port), server.Options{
-		Connections: dbConnections,
+		Pools: pools,
 	})
 
 	if err != nil {

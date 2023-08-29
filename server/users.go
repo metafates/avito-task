@@ -6,19 +6,20 @@ import (
 	"time"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/metafates/avito-task/db"
 	"github.com/metafates/avito-task/log"
 	"github.com/metafates/avito-task/server/api"
 )
 
 // users Returns a list of all users
-func (a *Server) users(ctx context.Context) ([]api.UserID, error) {
-	sql, args, err := a.psql().Select("id").From(db.TableUsers).ToSql()
+func (s *Server) users(ctx context.Context, conn *pgxpool.Conn) ([]api.UserID, error) {
+	sql, args, err := s.psql().Select("id").From(db.TableUsers).ToSql()
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := a.pg().Query(ctx, sql, args...)
+	rows, err := conn.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -38,8 +39,8 @@ func (a *Server) users(ctx context.Context) ([]api.UserID, error) {
 }
 
 // userExists Checks if the given user exists
-func (a *Server) userExists(ctx context.Context, id api.UserID) (bool, error) {
-	sql, args, err := a.
+func (s *Server) userExists(ctx context.Context, conn *pgxpool.Conn, id api.UserID) (bool, error) {
+	sql, args, err := s.
 		psql().
 		Select("1").
 		From(db.TableUsers).
@@ -50,7 +51,7 @@ func (a *Server) userExists(ctx context.Context, id api.UserID) (bool, error) {
 	}
 
 	// postgres specifc
-	row := a.pg().QueryRow(ctx, fmt.Sprintf("SELECT EXISTS(%s)", sql), args...)
+	row := conn.QueryRow(ctx, fmt.Sprintf("SELECT EXISTS(%s)", sql), args...)
 
 	var exists bool
 	if err := row.Scan(&exists); err != nil {
@@ -61,8 +62,8 @@ func (a *Server) userExists(ctx context.Context, id api.UserID) (bool, error) {
 }
 
 // createUser Creates a new user.
-func (a *Server) createUser(ctx context.Context, id api.UserID) error {
-	sql, args, err := a.
+func (s *Server) createUser(ctx context.Context, conn *pgxpool.Conn, id api.UserID) error {
+	sql, args, err := s.
 		psql().
 		Insert(db.TableUsers).
 		Columns("id").
@@ -72,13 +73,13 @@ func (a *Server) createUser(ctx context.Context, id api.UserID) error {
 		return err
 	}
 
-	_, err = a.pg().Exec(ctx, sql, args...)
+	_, err = conn.Exec(ctx, sql, args...)
 	if err != nil {
 		return err
 	}
 
 	// Randomly assign segments based on their outreach
-	segments, err := a.segmentsWithOutreach(ctx)
+	segments, err := s.segmentsWithOutreach(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,7 @@ func (a *Server) createUser(ctx context.Context, id api.UserID) error {
 			continue
 		}
 
-		if err = a.assignSegment(ctx, id, segment.Slug, api.SegmentAssignment{}); err != nil {
+		if err = s.assignSegment(ctx, conn, id, segment.Slug, api.SegmentAssignment{}); err != nil {
 			return err
 		}
 	}
@@ -97,8 +98,8 @@ func (a *Server) createUser(ctx context.Context, id api.UserID) error {
 }
 
 // assignedSegments Gets all segments assigned to the user
-func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.UserSegment, error) {
-	sql, args, err := a.
+func (s *Server) assignedSegments(ctx context.Context, conn *pgxpool.Conn, id api.UserID) ([]api.UserSegment, error) {
+	sql, args, err := s.
 		psql().
 		Select("segment_slug", "expires_at").
 		From(db.TableAssignedSegments).
@@ -112,7 +113,7 @@ func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.Use
 		return nil, err
 	}
 
-	rows, err := a.pg().Query(ctx, sql, args...)
+	rows, err := conn.Query(ctx, sql, args...)
 	if err != nil {
 		log.Logger.Err(err).Send()
 		return nil, err
@@ -133,8 +134,8 @@ func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.Use
 }
 
 // userHasSegment Checks if user is assigned to this segment
-func (a *Server) userHasSegment(ctx context.Context, user api.UserID, segment api.Slug) (bool, error) {
-	segments, err := a.assignedSegments(ctx, user)
+func (s *Server) userHasSegment(ctx context.Context, conn *pgxpool.Conn, user api.UserID, segment api.Slug) (bool, error) {
+	segments, err := s.assignedSegments(ctx, conn, user)
 	if err != nil {
 		return false, err
 	}
@@ -149,8 +150,9 @@ func (a *Server) userHasSegment(ctx context.Context, user api.UserID, segment ap
 }
 
 // assignSegment Assigns segment to a user
-func (a *Server) assignSegment(
+func (s *Server) assignSegment(
 	ctx context.Context,
+	conn *pgxpool.Conn,
 	user api.UserID,
 	segment api.Slug,
 	assignment api.SegmentAssignment,
@@ -163,7 +165,7 @@ func (a *Server) assignSegment(
 		values = append(values, assignment.ExpiresAt)
 	}
 
-	sql, args, err := a.
+	sql, args, err := s.
 		psql().
 		Insert(db.TableAssignedSegments).
 		Columns(colums...).
@@ -173,17 +175,18 @@ func (a *Server) assignSegment(
 		return err
 	}
 
-	_, err = a.pg().Exec(ctx, sql, args...)
+	_, err = conn.Exec(ctx, sql, args...)
 	return err
 }
 
 // depriveSegment Removes segment from a user
-func (a *Server) depriveSegment(
+func (s *Server) depriveSegment(
 	ctx context.Context,
+	conn *pgxpool.Conn,
 	user api.UserID,
 	segment api.Slug,
 ) error {
-	sql, args, err := a.
+	sql, args, err := s.
 		psql().
 		Delete(db.TableAssignedSegments).
 		Where(squirrel.Eq{"user_id": user, "segment_slug": segment}).
@@ -192,6 +195,6 @@ func (a *Server) depriveSegment(
 		return err
 	}
 
-	_, err = a.pg().Exec(ctx, sql, args...)
+	_, err = conn.Exec(ctx, sql, args...)
 	return err
 }

@@ -30,7 +30,13 @@ func (s *Server) GetAudit(ctx context.Context, request api.GetAuditRequestObject
 		filter.User = user
 	}
 
-	audit, err := s.audit(ctx, filter)
+	conn, err := s.pgpool().Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	audit, err := s.audit(ctx, conn, filter)
 	if err != nil {
 		log.Logger.Err(err).Send()
 		return nil, err
@@ -49,8 +55,14 @@ func (s *Server) GetAudit(ctx context.Context, request api.GetAuditRequestObject
 }
 
 // PostUsersId implements StrictServerInterface.
-func (a *Server) PostUsersId(ctx context.Context, request api.PostUsersIdRequestObject) (api.PostUsersIdResponseObject, error) {
-	exists, err := a.userExists(ctx, request.Id)
+func (s *Server) PostUsersId(ctx context.Context, request api.PostUsersIdRequestObject) (api.PostUsersIdResponseObject, error) {
+	conn, err := s.pgpool().Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	exists, err := s.userExists(ctx, conn, request.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +73,7 @@ func (a *Server) PostUsersId(ctx context.Context, request api.PostUsersIdRequest
 		}, nil
 	}
 
-	if err := a.createUser(ctx, request.Id); err != nil {
+	if err := s.createUser(ctx, conn, request.Id); err != nil {
 		return nil, err
 	}
 
@@ -69,8 +81,14 @@ func (a *Server) PostUsersId(ctx context.Context, request api.PostUsersIdRequest
 }
 
 // DeleteSegmentsSlug implements StrictServerInterface.
-func (a *Server) DeleteSegmentsSlug(ctx context.Context, request api.DeleteSegmentsSlugRequestObject) (api.DeleteSegmentsSlugResponseObject, error) {
-	exists, err := a.segmentExists(ctx, request.Slug)
+func (s *Server) DeleteSegmentsSlug(ctx context.Context, request api.DeleteSegmentsSlugRequestObject) (api.DeleteSegmentsSlugResponseObject, error) {
+	conn, err := s.pgpool().Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	exists, err := s.segmentExists(ctx, conn, request.Slug)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +99,7 @@ func (a *Server) DeleteSegmentsSlug(ctx context.Context, request api.DeleteSegme
 		}, nil
 	}
 
-	if err = a.deleteSegment(ctx, request.Slug); err != nil {
+	if err = s.deleteSegment(ctx, conn, request.Slug); err != nil {
 		return nil, err
 	}
 
@@ -89,8 +107,14 @@ func (a *Server) DeleteSegmentsSlug(ctx context.Context, request api.DeleteSegme
 }
 
 // DeleteUsersIdSegmentsSlug implements StrictServerInterface.
-func (a *Server) DeleteUsersIdSegmentsSlug(ctx context.Context, request api.DeleteUsersIdSegmentsSlugRequestObject) (api.DeleteUsersIdSegmentsSlugResponseObject, error) {
-	exists, err := a.userExists(ctx, request.Id)
+func (s *Server) DeleteUsersIdSegmentsSlug(ctx context.Context, request api.DeleteUsersIdSegmentsSlugRequestObject) (api.DeleteUsersIdSegmentsSlugResponseObject, error) {
+	conn, err := s.pgpool().Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	exists, err := s.userExists(ctx, conn, request.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +125,7 @@ func (a *Server) DeleteUsersIdSegmentsSlug(ctx context.Context, request api.Dele
 		}, nil
 	}
 
-	exists, err = a.segmentExists(ctx, request.Slug)
+	exists, err = s.segmentExists(ctx, conn, request.Slug)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +136,7 @@ func (a *Server) DeleteUsersIdSegmentsSlug(ctx context.Context, request api.Dele
 		}, nil
 	}
 
-	hasSegment, err := a.userHasSegment(ctx, request.Id, request.Slug)
+	hasSegment, err := s.userHasSegment(ctx, conn, request.Id, request.Slug)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +147,7 @@ func (a *Server) DeleteUsersIdSegmentsSlug(ctx context.Context, request api.Dele
 		}, err
 	}
 
-	if err = a.depriveSegment(ctx, request.Id, request.Slug); err != nil {
+	if err = s.depriveSegment(ctx, conn, request.Id, request.Slug); err != nil {
 		return nil, err
 	}
 
@@ -131,8 +155,14 @@ func (a *Server) DeleteUsersIdSegmentsSlug(ctx context.Context, request api.Dele
 }
 
 // GetUsersIdSegments implements StrictServerInterface.
-func (a *Server) GetUsersIdSegments(ctx context.Context, request api.GetUsersIdSegmentsRequestObject) (api.GetUsersIdSegmentsResponseObject, error) {
-	exists, err := a.userExists(ctx, request.Id)
+func (s *Server) GetUsersIdSegments(ctx context.Context, request api.GetUsersIdSegmentsRequestObject) (api.GetUsersIdSegmentsResponseObject, error) {
+	conn, err := s.pgpool().Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	exists, err := s.userExists(ctx, conn, request.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +173,7 @@ func (a *Server) GetUsersIdSegments(ctx context.Context, request api.GetUsersIdS
 		}, nil
 	}
 
-	segments, err := a.assignedSegments(ctx, request.Id)
+	segments, err := s.assignedSegments(ctx, conn, request.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +182,14 @@ func (a *Server) GetUsersIdSegments(ctx context.Context, request api.GetUsersIdS
 }
 
 // PostSegmentsSlug implements StrictServerInterface.
-func (a *Server) PostSegmentsSlug(ctx context.Context, request api.PostSegmentsSlugRequestObject) (api.PostSegmentsSlugResponseObject, error) {
-	exists, err := a.segmentExists(ctx, request.Slug)
+func (s *Server) PostSegmentsSlug(ctx context.Context, request api.PostSegmentsSlugRequestObject) (api.PostSegmentsSlugResponseObject, error) {
+	conn, err := s.pgpool().Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	exists, err := s.segmentExists(ctx, conn, request.Slug)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +205,7 @@ func (a *Server) PostSegmentsSlug(ctx context.Context, request api.PostSegmentsS
 		segmentCreation.Outreach = body.Outreach
 	}
 
-	if err = a.createSegment(ctx, request.Slug, segmentCreation); err != nil {
+	if err = s.createSegment(ctx, conn, request.Slug, segmentCreation); err != nil {
 		return nil, err
 	}
 
@@ -177,14 +213,20 @@ func (a *Server) PostSegmentsSlug(ctx context.Context, request api.PostSegmentsS
 }
 
 // PostUsersIdSegmentsSlug implements StrictServerInterface.
-func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUsersIdSegmentsSlugRequestObject) (api.PostUsersIdSegmentsSlugResponseObject, error) {
+func (s *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUsersIdSegmentsSlugRequestObject) (api.PostUsersIdSegmentsSlugResponseObject, error) {
 	if expires := request.Body.ExpiresAt; expires != nil && expires.Before(time.Now()) {
 		return api.PostUsersIdSegmentsSlug400JSONResponse{
 			Error: "segment is already expired",
 		}, nil
 	}
 
-	exists, err := a.userExists(ctx, request.Id)
+	conn, err := s.pgpool().Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	exists, err := s.userExists(ctx, conn, request.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +237,7 @@ func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUs
 		}, nil
 	}
 
-	exists, err = a.segmentExists(ctx, request.Slug)
+	exists, err = s.segmentExists(ctx, conn, request.Slug)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +248,7 @@ func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUs
 		}, nil
 	}
 
-	hasSegment, err := a.userHasSegment(ctx, request.Id, request.Slug)
+	hasSegment, err := s.userHasSegment(ctx, conn, request.Id, request.Slug)
 	if err != nil {
 		return nil, err
 	}
@@ -222,8 +264,9 @@ func (a *Server) PostUsersIdSegmentsSlug(ctx context.Context, request api.PostUs
 		segmentAssignment.ExpiresAt = body.ExpiresAt
 	}
 
-	if err = a.assignSegment(
+	if err = s.assignSegment(
 		ctx,
+		conn,
 		request.Id,
 		request.Slug,
 		segmentAssignment,

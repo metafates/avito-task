@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/metafates/avito-task/db"
 	"github.com/metafates/avito-task/server/api"
 )
@@ -64,7 +65,7 @@ type auditFilter struct {
 	User     *api.UserID
 }
 
-func (s *Server) audit(ctx context.Context, filter auditFilter) (audit, error) {
+func (s *Server) audit(ctx context.Context, conn *pgxpool.Conn, filter auditFilter) (audit, error) {
 	query := s.
 		psql().
 		Select("user_id", "segment_slug", "action", "stamp", "expires_at").
@@ -87,7 +88,7 @@ func (s *Server) audit(ctx context.Context, filter auditFilter) (audit, error) {
 		return nil, err
 	}
 
-	rows, err := s.pg().Query(ctx, sql, args...)
+	rows, err := conn.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}

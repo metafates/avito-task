@@ -6,6 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/metafates/avito-task/db"
 	"github.com/metafates/avito-task/server/api"
 )
@@ -26,8 +27,8 @@ func shouldSegmentBeAssigned(outreach api.Outreach) bool {
 }
 
 // segmentExists Checks if there is a segment with the given slug
-func (a *Server) segmentExists(ctx context.Context, slug api.Slug) (bool, error) {
-	sql, args, err := a.
+func (s *Server) segmentExists(ctx context.Context, conn *pgxpool.Conn, slug api.Slug) (bool, error) {
+	sql, args, err := s.
 		psql().
 		Select("1").
 		From(db.TableSegments).
@@ -38,7 +39,7 @@ func (a *Server) segmentExists(ctx context.Context, slug api.Slug) (bool, error)
 	}
 
 	// postgres specifc
-	row := a.pg().QueryRow(ctx, fmt.Sprintf("SELECT EXISTS(%s)", sql), args...)
+	row := conn.QueryRow(ctx, fmt.Sprintf("SELECT EXISTS(%s)", sql), args...)
 
 	var exists bool
 	if err := row.Scan(&exists); err != nil {
@@ -49,7 +50,7 @@ func (a *Server) segmentExists(ctx context.Context, slug api.Slug) (bool, error)
 }
 
 // createSegment Creates a new segment.
-func (a *Server) createSegment(ctx context.Context, slug api.Slug, segment api.SegmentCreation) error {
+func (s *Server) createSegment(ctx context.Context, conn *pgxpool.Conn, slug api.Slug, segment api.SegmentCreation) error {
 	colums := []string{"slug"}
 	values := []any{slug}
 
@@ -58,7 +59,7 @@ func (a *Server) createSegment(ctx context.Context, slug api.Slug, segment api.S
 		values = append(values, segment.Outreach)
 	}
 
-	sql, args, err := a.
+	sql, args, err := s.
 		psql().
 		Insert(db.TableSegments).
 		Columns(colums...).
@@ -68,7 +69,7 @@ func (a *Server) createSegment(ctx context.Context, slug api.Slug, segment api.S
 		return err
 	}
 
-	_, err = a.pg().Exec(ctx, sql, args...)
+	_, err = conn.Exec(ctx, sql, args...)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func (a *Server) createSegment(ctx context.Context, slug api.Slug, segment api.S
 	outreach := *segment.Outreach
 
 	// assign this segment to the users based on its outreach
-	users, err := a.users(ctx)
+	users, err := s.users(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -89,7 +90,7 @@ func (a *Server) createSegment(ctx context.Context, slug api.Slug, segment api.S
 			continue
 		}
 
-		if err = a.assignSegment(ctx, user, slug, api.SegmentAssignment{}); err != nil {
+		if err = s.assignSegment(ctx, conn, user, slug, api.SegmentAssignment{}); err != nil {
 			return err
 		}
 	}
@@ -98,8 +99,8 @@ func (a *Server) createSegment(ctx context.Context, slug api.Slug, segment api.S
 }
 
 // deleteSegment Deletes the segment
-func (a *Server) deleteSegment(ctx context.Context, slug api.Slug) error {
-	sql, args, err := a.
+func (s *Server) deleteSegment(ctx context.Context, conn *pgxpool.Conn, slug api.Slug) error {
+	sql, args, err := s.
 		psql().
 		Delete(db.TableSegments).
 		Where(squirrel.Eq{"slug": slug}).
@@ -108,13 +109,13 @@ func (a *Server) deleteSegment(ctx context.Context, slug api.Slug) error {
 		return err
 	}
 
-	_, err = a.pg().Exec(ctx, sql, args...)
+	_, err = conn.Exec(ctx, sql, args...)
 	return err
 }
 
 // segmentsWithOutreach Returns a list of segments that has non-nil outreach column
-func (a *Server) segmentsWithOutreach(ctx context.Context) ([]segmentWithOutreach, error) {
-	sql, args, err := a.
+func (s *Server) segmentsWithOutreach(ctx context.Context, conn *pgxpool.Conn) ([]segmentWithOutreach, error) {
+	sql, args, err := s.
 		psql().
 		Select("slug", "outreach").
 		From(db.TableSegments).
@@ -124,7 +125,7 @@ func (a *Server) segmentsWithOutreach(ctx context.Context) ([]segmentWithOutreac
 		return nil, err
 	}
 
-	rows, err := a.pg().Query(ctx, sql, args...)
+	rows, err := conn.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
