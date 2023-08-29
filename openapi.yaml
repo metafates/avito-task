@@ -55,7 +55,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
-      summary: Delete a segment
+      summary: Delete a segment. It will be deprived from all users automatically.
       responses:
         '200':
           description: Segment successfully deleted
@@ -144,24 +144,37 @@ components:
     CSV:
       type: string
       format: csv
+      description: CSV table
+      example: |
+        user_id,segment_slug,action,stamp
+        1234,AVITO_TEST,ASSIGN,2023-08-28T22:29:13+03:00
+        1234,AVITO_TEST,DEPRIVE,2023-08-28T22:29:16+03:00
     Date:
       type: string
       format: date
+      description: Full-date notation as defined by RFC 3339, section 5.6
+      example: 2017-07-21
     Timestamp:
       type: string
       format: date-time
+      description: The date-time notation as defined by RFC 3339, section 5.6
+      example: 2017-07-21T17:32:28+03:00
     Outreach:
       type: number
       format: float
+      description: Percent of users that this segment should be assigned to. It includes both existing and new users.
+      example: 0.42
       minimum: 0
       maximum: 1
     UserID:
-      # type: string
       type: integer
       format: int32
+      example: 1234
     Slug:
       type: string
+      description: Segment slug
       minLength: 1
+      example: AVITO_VOICE_MESSAGES
     UserSegment:
       type: object
       required:

@@ -23,6 +23,8 @@ func Run(ctx context.Context, addr string, options Options) error {
 	swaggerSpec.Servers = nil
 
 	e := echo.New()
+
+	// register api methods
 	apiGroup := e.Group("")
 	apiGroup.Use(middleware.OapiRequestValidatorWithOptions(swaggerSpec, &middleware.Options{
 		ErrorHandler: func(c echo.Context, err *echo.HTTPError) error {
@@ -52,6 +54,7 @@ func Run(ctx context.Context, addr string, options Options) error {
 
 	api.RegisterHandlers(apiGroup, apiHandler)
 
+	// register swagger ui
 	swaggerHandler, err := swagger.NewHandler(swaggerSpec)
 	if err != nil {
 		return err
@@ -59,10 +62,16 @@ func Run(ctx context.Context, addr string, options Options) error {
 
 	e.GET("/docs/*", echo.WrapHandler(http.StripPrefix("/docs", swaggerHandler)))
 
+	// run the server
 	g, gCtx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
 		log.Logger.Info().Str("addr", addr).Msg("server is up and running")
+		log.
+			Logger.
+			Info().
+			Str("addr", fmt.Sprint("http://", addr, "/docs/")).
+			Msg("API documentation is available")
 		return e.Start(addr)
 	})
 	g.Go(func() error {

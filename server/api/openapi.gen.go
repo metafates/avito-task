@@ -23,10 +23,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// CSV defines model for CSV.
+// CSV CSV table
 type CSV = string
 
-// Date defines model for Date.
+// Date Full-date notation as defined by RFC 3339, section 5.6
 type Date = openapi_types.Date
 
 // Error defines model for Error.
@@ -34,13 +34,13 @@ type Error struct {
 	Error string `json:"error"`
 }
 
-// Outreach defines model for Outreach.
+// Outreach Percent of users that this segment should be assigned to. It includes both existing and new users.
 type Outreach = float32
 
-// Slug defines model for Slug.
+// Slug Segment slug
 type Slug = string
 
-// Timestamp defines model for Timestamp.
+// Timestamp The date-time notation as defined by RFC 3339, section 5.6
 type Timestamp = time.Time
 
 // UserID defines model for UserID.
@@ -48,8 +48,11 @@ type UserID = int32
 
 // UserSegment defines model for UserSegment.
 type UserSegment struct {
+	// ExpiresAt The date-time notation as defined by RFC 3339, section 5.6
 	ExpiresAt *Timestamp `json:"expiresAt,omitempty"`
-	Slug      Slug       `json:"slug"`
+
+	// Slug Segment slug
+	Slug Slug `json:"slug"`
 }
 
 // User defines model for User.
@@ -57,11 +60,13 @@ type User = UserID
 
 // SegmentAssignment defines model for SegmentAssignment.
 type SegmentAssignment struct {
+	// ExpiresAt The date-time notation as defined by RFC 3339, section 5.6
 	ExpiresAt *Timestamp `json:"expiresAt,omitempty"`
 }
 
 // SegmentCreation defines model for SegmentCreation.
 type SegmentCreation struct {
+	// Outreach Percent of users that this segment should be assigned to. It includes both existing and new users.
 	Outreach *Outreach `json:"outreach,omitempty"`
 }
 
@@ -79,11 +84,13 @@ type GetAuditParams struct {
 
 // PostSegmentsSlugJSONBody defines parameters for PostSegmentsSlug.
 type PostSegmentsSlugJSONBody struct {
+	// Outreach Percent of users that this segment should be assigned to. It includes both existing and new users.
 	Outreach *Outreach `json:"outreach,omitempty"`
 }
 
 // PostUsersIdSegmentsSlugJSONBody defines parameters for PostUsersIdSegmentsSlug.
 type PostUsersIdSegmentsSlugJSONBody struct {
+	// ExpiresAt The date-time notation as defined by RFC 3339, section 5.6
 	ExpiresAt *Timestamp `json:"expiresAt,omitempty"`
 }
 
@@ -98,7 +105,7 @@ type ServerInterface interface {
 	// Get audit of changes
 	// (GET /audit)
 	GetAudit(ctx echo.Context, params GetAuditParams) error
-	// Delete a segment
+	// Delete a segment. It will be deprived from all users automatically.
 	// (DELETE /segments/{slug})
 	DeleteSegmentsSlug(ctx echo.Context, slug Slug) error
 	// Create a new segment
@@ -510,7 +517,7 @@ type StrictServerInterface interface {
 	// Get audit of changes
 	// (GET /audit)
 	GetAudit(ctx context.Context, request GetAuditRequestObject) (GetAuditResponseObject, error)
-	// Delete a segment
+	// Delete a segment. It will be deprived from all users automatically.
 	// (DELETE /segments/{slug})
 	DeleteSegmentsSlug(ctx context.Context, request DeleteSegmentsSlugRequestObject) (DeleteSegmentsSlugResponseObject, error)
 	// Create a new segment
@@ -734,25 +741,30 @@ func (sh *strictHandler) PostUsersIdSegmentsSlug(ctx echo.Context, id User, slug
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"whz6j1VVVf8EAAD//5261RSnFAAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
