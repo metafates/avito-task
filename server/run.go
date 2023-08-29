@@ -46,7 +46,7 @@ func Run(ctx context.Context, addr string, options Options) error {
 	}))
 
 	apiHandler := api.NewStrictHandler(
-		New(options),
+		&Server{options: options},
 		[]api.StrictMiddlewareFunc{
 			middlewareLogger,
 		},
