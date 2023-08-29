@@ -111,7 +111,6 @@ func (a *Server) assignedSegments(ctx context.Context, id api.UserID) ([]api.Use
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(sql)
 
 	rows, err := a.pg().Query(ctx, sql, args...)
 	if err != nil {
