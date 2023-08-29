@@ -154,11 +154,55 @@ Everything. Primary task and all extra tasks.
 ### Primary task
 
 - [x] Method for creating a user
+
+```bash
+curl --request POST \
+  --url http://0.0.0.0:1234/users/1234 \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json'
+```
+
 - [x] Method for creating a segment
+
+```bash
+curl --request POST \
+  --url http://0.0.0.0:1234/segments/AVITO_TEST \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json'
+```
+
 - [x] Method for deleting a segment
+
+```bash
+curl --request DELETE \
+  --url http://0.0.0.0:1234/segments/AVITO_TEST \
+  --header 'Accept: application/json'
+```
+
 - [x] Method for assigning a segment to a user
+
+```bash
+curl --request POST \
+  --url http://0.0.0.0:1234/users/1234/segments/AVITO_TEST \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json'
+```
+
 - [x] Method for depriving a segment from a user
+
+```bash
+curl --request DELETE \
+  --url http://0.0.0.0:1234/users/1234/segments/AVITO_TEST \
+  --header 'Accept: application/json'
+```
+
 - [x] Method for getting active segments of a user
+
+```bash
+curl --request GET \
+  --url http://0.0.0.0:1234/users/1234/segments \
+  --header 'Accept: application/json'
+```
 
 ### Extra 1 - CSV Audit
 
@@ -193,6 +237,16 @@ That is, the whole process is done automatically.
 
 The rows itself are not deleted from the database when they expire.
 Instead, they are just filtered out on `SELECT` query.
+
+```bash
+curl --request POST \
+  --url http://0.0.0.0:1234/users/1234/segments/AVITO_TEST \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "expiresAt": "2017-07-21T17:32:28+03:00"
+}'
+```
 
 ### Extra 3 - Automatically assign % users to the segment
 
